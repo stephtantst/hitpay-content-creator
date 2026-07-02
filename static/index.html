@@ -2077,6 +2077,27 @@
     white-space: nowrap; flex-shrink: 0;
   }
 
+  .launch-badge {
+    display: inline-flex; align-items: center; gap: 2px;
+    font-size: 10px; font-weight: 600; padding: 1px 5px;
+    background: #f5f3ff; color: #7c3aed;
+    border: 1px solid #ddd6fe; border-radius: 4px;
+    vertical-align: middle; margin-left: 5px; cursor: default;
+    white-space: nowrap; flex-shrink: 0;
+  }
+
+  .launch-channels { display: flex; flex-wrap: wrap; gap: 10px; }
+  .launch-channel {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 500; color: var(--text);
+    padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; user-select: none; background: var(--surface);
+  }
+  .launch-channel:has(input:checked) {
+    background: #f5f3ff; border-color: #ddd6fe; color: #6d28d9;
+  }
+  .launch-channel input { accent-color: #7c3aed; cursor: pointer; }
+
   .social-post-chip {
     display: flex; align-items: center; gap: 6px; padding: 6px 8px;
     border-radius: 6px; background: var(--sidebar-bg, #f8f9fa);
@@ -2462,6 +2483,7 @@
     <button class="new-post-arrow" onclick="toggleNewPostMenu(event)" title="More options">▾</button>
     <div class="new-post-menu" id="newPostMenu">
       <button class="new-post-menu-item" onclick="openGenerateModal(); closeNewPostMenu()">Generate Post</button>
+      <button class="new-post-menu-item" onclick="openLaunchModal(); closeNewPostMenu()">🚀 From Product Launch</button>
       <button class="new-post-menu-item" onclick="openRewriteModal(); closeNewPostMenu()">Rewrite Existing Post</button>
       <button class="new-post-menu-item" onclick="openBulkModal(); closeNewPostMenu()">Bulk Generate from CSV</button>
       <button class="new-post-menu-item" onclick="createTestPost(); closeNewPostMenu()">Create Test Post</button>
@@ -3804,6 +3826,61 @@
   </div>
 </div>
 
+<!-- Product Launch Modal -->
+<div class="modal-overlay" id="launchModal">
+  <div class="modal edm-modal">
+    <div class="edm-modal-header">
+      <h2>🚀 Generate from Product Launch</h2>
+      <button class="repurpose-modal-close" onclick="closeLaunchModal()">✕</button>
+    </div>
+
+    <!-- Input view -->
+    <div id="launchInputView" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <div class="edm-input-body">
+        <label>Paste your launch document — an EDM or a PRD</label>
+        <textarea id="launchContent" placeholder="Paste the full launch email (EDM) or product spec (PRD) here.&#10;&#10;We'll write the selected channels below — and strip any internal/team-only notes."></textarea>
+        <div class="modal-field-label" style="margin:12px 0 6px;">Channels to generate</div>
+        <div class="launch-channels">
+          <label class="launch-channel"><input type="checkbox" id="lc-blog" checked> 📝 Blog</label>
+          <label class="launch-channel"><input type="checkbox" id="lc-x" checked> 𝕏 X</label>
+          <label class="launch-channel"><input type="checkbox" id="lc-threads" checked> 🧵 Threads</label>
+          <label class="launch-channel"><input type="checkbox" id="lc-linkedin" checked> 💼 LinkedIn</label>
+        </div>
+        <div class="edm-input-footer">
+          <input id="launchTopic" class="filter-select" style="font-size:12px;padding:5px 8px;flex:1;min-width:0;" placeholder="Topic / headline (optional)" />
+          <select id="launchMarket" class="filter-select" style="font-size:12px;padding:5px 8px;width:auto;">
+            <option value="">Market: General</option>
+            <option value="SG">🇸🇬 Singapore</option>
+            <option value="MY">🇲🇾 Malaysia</option>
+            <option value="PH">🇵🇭 Philippines</option>
+          </select>
+          <button class="btn btn-primary" onclick="startLaunchBundle()">Generate</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading view -->
+    <div id="launchLoadingView" style="display:none;flex:1;overflow:hidden;flex-direction:column;">
+      <div class="edm-loading">
+        <div class="spinner"></div>
+        <div id="launchLoadingStatus">Generating blog post from your launch…</div>
+      </div>
+    </div>
+
+    <!-- Results view -->
+    <div id="launchResultsView" style="display:none;flex:1;overflow:auto;flex-direction:column;">
+      <div class="edm-input-body">
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px;">✅ Created from your product launch</div>
+        <div id="launchResultsTitle" class="modal-sub" style="margin-bottom:14px;"></div>
+        <div id="launchResultsButtons" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div style="margin-top:16px;">
+          <button class="btn btn-secondary" style="font-size:12px;" onclick="_showLaunchView('input')">← Generate another</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Delete Confirmation Modal -->
 <div class="modal-overlay" id="deleteModal">
   <div class="modal">
@@ -4250,7 +4327,7 @@ function renderPostList() {
   list.innerHTML = filtered.map(p => `
     <div class="post-item${currentPost && currentPost.id === p.id ? ' active' : ''}"
          onclick="openPost(${p.id})">
-      <div class="post-item-title">${escHtml(p.title)}</div>
+      <div class="post-item-title">${escHtml(p.title)}${p.source === 'product_launch' ? '<span class="launch-badge">🚀 Launch</span>' : ''}</div>
       <div class="post-item-meta">
         <div class="status-dot ${p.status}"></div>
         <span class="post-item-date">${p.date || ''}</span>
@@ -5691,7 +5768,7 @@ function renderListView(filtered) {
         <input type="checkbox" ${sel ? 'checked' : ''} onchange="toggleSelect(${p.id}, this.checked)" />
       </td>
       <td>
-        <span class="post-row-title" onclick="openPost(${p.id})">${escHtml(p.title)}</span>
+        <span class="post-row-title" onclick="openPost(${p.id})">${escHtml(p.title)}</span>${launchBadge(p)}
         ${p.keyword ? `<div class="post-row-kw">${escHtml(p.keyword)}</div>` : ''}
       </td>
       <td>${p.source_url ? '<span class="type-badge rewrite">Rewrite</span>' : '<span class="type-badge new">New</span>'}</td>
@@ -5744,6 +5821,7 @@ function renderBoardView(filtered, statusFilter = 'all') {
           <div class="board-card-title" onclick="openPost(${p.id})">${escHtml(p.title)}</div>
           <div class="board-card-foot">
             ${p.source_url ? '<span class="type-badge rewrite">Rewrite</span>' : '<span class="type-badge new">New</span>'}
+            ${p.source === 'product_launch' ? '<span class="launch-badge" style="margin-left:0;">🚀 Launch</span>' : ''}
             ${p.country ? `<span class="market-badge">${marketLabel(p.country)}</span>` : ''}
             <select class="inline-editor-sel" onchange="setEditorInline(${p.id}, this.value)" onclick="event.stopPropagation()">${editorOptions(p.editor_email)}</select>
             <span class="board-card-date">${fmtDatetime(p.created_at)}</span>
@@ -5998,6 +6076,11 @@ function updateRepurposeBtn() {
 function blogSourceBadge(p) {
   if (!p.source_blog_post_id) return '';
   return `<span class="blog-source-badge" title="Repurposed from blog post #${p.source_blog_post_id}">↗ blog</span>`;
+}
+
+function launchBadge(p) {
+  if (!p || p.source !== 'product_launch') return '';
+  return `<span class="launch-badge" title="Generated from a product launch">🚀 Launch</span>`;
 }
 
 async function loadSocialPostsForBlog(postId) {
@@ -7730,7 +7813,7 @@ function renderXBoardView() {
         <div class="x-board-card-meta">
           ${market ? `<span>${market}</span>` : ''}
           ${isThread ? '<span>🧵 Thread</span>' : ''}
-          ${p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : ''}
+          ${p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : ''}${launchBadge(p)}
           <span>${p.created_at ? fmtDate(p.created_at) : ''}</span>
         </div>
       </div>`;
@@ -8698,7 +8781,7 @@ function renderThrBoardView() {
         <div class="x-board-card-meta">
           ${market ? `<span>${market}</span>` : ''}
           ${isThread ? '<span>🧵 Thread</span>' : ''}
-          ${p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : ''}
+          ${p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : ''}${launchBadge(p)}
           <span>${p.created_at ? fmtDate(p.created_at) : ''}</span>
         </div>
       </div>`;
@@ -9405,7 +9488,7 @@ function renderLiBoardView() {
         <div class="x-board-card-preview">${escHtml(preview)}</div>
         <div class="x-board-card-meta">
           ${market ? `<span>${market}</span>` : ''}
-          ${p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : ''}
+          ${p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : ''}${launchBadge(p)}
           <span>${p.created_at ? fmtDate(p.created_at) : ''}</span>
         </div>
       </div>`;
@@ -9999,7 +10082,7 @@ function renderSocialCalDraftSidebar() {
     const mkt = p.market ? `<div class="cal-draft-card-market">${xMarketFlag(p.market)} ${p.market}</div>` : '';
     const color = colors[plat] || '#888';
     const fromCalFns2 = { x: 'openXFromSocialCal', thr: 'openThrFromSocialCal', li: 'openLiFromSocialCal' };
-    const blogBadge = p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : '';
+    const blogBadge = (p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : '') + launchBadge(p);
     return `<div class="cal-draft-card" style="border-left:3px solid ${color};"
       onclick="${fromCalFns2[plat]}(${p.id})">
       <div style="font-size:9px;font-weight:700;color:${color};margin-bottom:3px;">${labels[plat]}${blogBadge}</div>
@@ -10174,7 +10257,7 @@ function renderCalDraftSidebar(platform) {
     const dateStr = p.created_at ? fmtDate(p.created_at) : '';
     const dateLine = dateStr ? `<div class="cal-draft-card-date">${escHtml(dateStr)}</div>` : '';
     const openFn = platform === 'x' ? 'openXPostFromOverview' : platform === 'li' ? 'openLiPostFromOverview' : 'openThrPostFromOverview';
-    const blogBadge = p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : '';
+    const blogBadge = (p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : '') + launchBadge(p);
     return `<div class="cal-draft-card" draggable="true"
       ondragstart="calDragStart(event,${p.id},'${platform}')"
       ondragend="calDragEnd(event)"
@@ -10514,6 +10597,140 @@ function edmCopyThread(btn) {
 function edmCopyThreads() {
   const text = document.getElementById('edmThreadsContent').value;
   navigator.clipboard.writeText(text).then(() => showToast('Threads post copied!'));
+}
+
+// ── Product Launch → Blog + X + Threads + LinkedIn ─────────────────────────────
+let _launchAbortController = null;
+
+function openLaunchModal() {
+  document.getElementById('launchModal').classList.add('open');
+  _showLaunchView('input');
+}
+
+function closeLaunchModal() {
+  if (_launchAbortController) { _launchAbortController.abort(); _launchAbortController = null; }
+  document.getElementById('launchModal').classList.remove('open');
+}
+
+function _showLaunchView(view) {
+  document.getElementById('launchInputView').style.display   = view === 'input'   ? 'flex' : 'none';
+  document.getElementById('launchLoadingView').style.display = view === 'loading' ? 'flex' : 'none';
+  document.getElementById('launchResultsView').style.display = view === 'results' ? 'flex' : 'none';
+}
+
+async function startLaunchBundle() {
+  const launch = document.getElementById('launchContent').value.trim();
+  if (!launch) { showToast('Paste your launch document first', 'error'); return; }
+  const market = document.getElementById('launchMarket').value || null;
+  const topic = document.getElementById('launchTopic').value.trim() || null;
+
+  const channels = [];
+  if (document.getElementById('lc-blog').checked) channels.push('blog');
+  if (document.getElementById('lc-x').checked) channels.push('x');
+  if (document.getElementById('lc-threads').checked) channels.push('threads');
+  if (document.getElementById('lc-linkedin').checked) channels.push('linkedin');
+  if (!channels.length) { showToast('Select at least one channel', 'error'); return; }
+
+  if (_launchAbortController) _launchAbortController.abort();
+  _launchAbortController = new AbortController();
+  const signal = _launchAbortController.signal;
+
+  _showLaunchView('loading');
+  const statusEl = document.getElementById('launchLoadingStatus');
+
+  // Each step is its own short JSON request rather than one long streaming call —
+  // Vercel's serverless runtime drops a multi-minute silent SSE connection, which
+  // showed up as "Failed to fetch". Blog runs first so the social drafts can link
+  // back to it; per-channel failures are collected and shown, not fatal.
+  const result = { blog_id: null, title: null, x_id: null, threads_id: null, linkedin_id: null, errors: {}, link_warnings: null };
+
+  async function postJSON(url, payload) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal,
+    });
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try { const j = await res.json(); if (j && j.detail) detail = j.detail; } catch (_) {}
+      throw new Error(detail);
+    }
+    return res.json();
+  }
+
+  try {
+    const wantBlog = channels.includes('blog');
+    const socialChannels = channels.filter(c => c === 'x' || c === 'threads');
+    const wantLinkedin = channels.includes('linkedin');
+
+    if (wantBlog) {
+      statusEl.textContent = 'Generating blog post from your launch…';
+      const b = await postJSON('/api/generate-launch/blog', { launch_content: launch, market, topic, brand: activeBrand });
+      result.blog_id = b.blog_id;
+      result.title = b.title;
+      result.link_warnings = b.link_warnings || null;
+    }
+
+    if (socialChannels.length) {
+      statusEl.textContent = 'Generating ' + socialChannels.map(c => c === 'x' ? 'X' : 'Threads').join(' & ') + ' draft…';
+      try {
+        const s = await postJSON('/api/generate-launch/social', { launch_content: launch, market, brand: activeBrand, blog_id: result.blog_id, channels: socialChannels });
+        result.x_id = s.x_id;
+        result.threads_id = s.threads_id;
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        result.errors.social = e.message || 'failed';
+      }
+    }
+
+    if (wantLinkedin) {
+      statusEl.textContent = 'Generating LinkedIn draft…';
+      try {
+        const l = await postJSON('/api/generate-launch/linkedin', { launch_content: launch, market, brand: activeBrand, blog_id: result.blog_id });
+        result.linkedin_id = l.linkedin_id;
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        result.errors.linkedin = e.message || 'failed';
+      }
+    }
+
+    _renderLaunchResults(result);
+    // Refresh the lists so the new drafts + blog show their 🚀 badge.
+    loadPosts();
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    _showLaunchView('input');
+    showToast('Generation failed: ' + (e.message || 'Unknown error'), 'error');
+  }
+}
+
+function _renderLaunchResults(msg) {
+  document.getElementById('launchResultsTitle').textContent = msg.title || '';
+  const wrap = document.getElementById('launchResultsButtons');
+  const rows = [];
+  if (msg.blog_id) rows.push({ label: '📝 Open blog post', fn: `_launchOpen('blog', ${msg.blog_id})` });
+  if (msg.x_id) rows.push({ label: '𝕏 View X draft', fn: `_launchOpen('x', ${msg.x_id})` });
+  if (msg.threads_id) rows.push({ label: '🧵 View Threads draft', fn: `_launchOpen('threads', ${msg.threads_id})` });
+  if (msg.linkedin_id) rows.push({ label: '💼 View LinkedIn draft', fn: `_launchOpen('linkedin', ${msg.linkedin_id})` });
+  wrap.innerHTML = rows.map(r =>
+    `<button class="btn btn-secondary" style="justify-content:flex-start;" onclick="${r.fn}">${r.label}</button>`
+  ).join('');
+
+  const failed = msg.errors ? Object.keys(msg.errors) : [];
+  if (failed.length) {
+    wrap.innerHTML += `<div class="modal-sub" style="color:var(--red);margin-top:6px;">Some channels failed: ${failed.join(', ')}. You can regenerate them from their tab.</div>`;
+  }
+  _showLaunchView('results');
+  showToast('Created blog + X, Threads & LinkedIn drafts from your launch');
+}
+
+function _launchOpen(kind, id) {
+  closeLaunchModal();
+  if (kind === 'blog') { switchPlatform('blog'); openPost(id); return; }
+  if (kind === 'x') { switchPlatform('x'); openXPostFromOverview(id); return; }
+  if (kind === 'threads') { switchPlatform('threads'); openThrPostFromOverview(id); return; }
+  if (kind === 'linkedin') { switchPlatform('linkedin'); openLiPostFromOverview(id); return; }
 }
 </script>
 

@@ -42,6 +42,7 @@ from src.database import (
     migrate_brand_column,
     migrate_x_repurposed_column,
     migrate_source_blog_post_id,
+    migrate_source_column,
     list_feedback,
     list_logins,
     list_posts,
@@ -71,7 +72,7 @@ GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    for migrate in (migrate_brand_column, migrate_x_repurposed_column, migrate_source_blog_post_id):
+    for migrate in (migrate_brand_column, migrate_x_repurposed_column, migrate_source_blog_post_id, migrate_source_column):
         try:
             migrate()
         except Exception:
@@ -2207,6 +2208,348 @@ def api_repurpose_all(post_id: int, user_email: str = Depends(require_auth)):
         "threads_id": results["threads"],
         "linkedin_id": results["linkedin"],
     }
+
+
+class LaunchBundleRequest(BaseModel):
+    launch_content: str
+    market: str | None = None
+    topic: str | None = None      # optional headline/keyword hint
+    brand: str = "hitpay"
+    channels: list[str] = ["blog", "x", "threads", "linkedin"]
+
+
+@app.post("/api/generate-launch-bundle")
+async def api_generate_launch_bundle(body: LaunchBundleRequest, user_email: str = Depends(require_auth)):
+    """From one launch document (EDM or PRD), generate the selected channels (blog + X,
+    Threads, LinkedIn drafts) in one shot. Everything is auto-saved, tagged
+    source='product_launch', and social drafts are linked back to the blog when one is
+    generated. Streams progress via SSE."""
+    from src.brand_config import get_brand_config
+    from src.linkedin_generator import generate_linkedin_from_changelog
+
+    launch = (body.launch_content or "").strip()
+    market = body.market or None
+    brand = body.brand or "hitpay"
+    channels = set(body.channels or [])
+    want_blog = "blog" in channels
+    want_x = "x" in channels
+    want_threads = "threads" in channels
+    want_linkedin = "linkedin" in channels
+
+    # Keyword hint drives research relevance + the topic angle; fall back to the
+    # launch's first non-empty line (its headline).
+    topic = (body.topic or "").strip()
+    if not topic:
+        topic = next((ln.strip() for ln in launch.splitlines() if ln.strip()), "product launch")[:150]
+
+    THREAD_SEP = "\n\n---\n\n"
+
+    async def stream():
+        loop = asyncio.get_event_loop()
+        messages: list[str] = []
+
+        def on_status(msg: str):
+            messages.append(msg)
+
+        try:
+            if not launch:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Launch content is empty'})}\n\n"
+                return
+            if not (want_blog or want_x or want_threads or want_linkedin):
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Select at least one channel'})}\n\n"
+                return
+
+            bc = get_brand_config(brand)
+            blog_id = None
+            blog_title = None
+            link_warnings = None
+            # When no blog is generated, X's link reply points at the brand blog homepage.
+            blog_url = bc.blog_base_url.rstrip("/")
+
+            if want_blog:
+                yield f"data: {json.dumps({'type': 'status', 'message': 'Generating blog post from your launch…'})}\n\n"
+                post_data = await loop.run_in_executor(
+                    None,
+                    lambda: generate_blog_post(topic, country=market, on_status=on_status, brand=brand, source_material=launch),
+                )
+                for msg in messages:
+                    yield f"data: {json.dumps({'type': 'status', 'message': msg})}\n\n"
+
+                existing = get_post_by_slug(post_data["slug"])
+                if existing:
+                    import time
+                    post_data["slug"] = f"{post_data['slug']}-{int(time.time())}"
+
+                post_data["editor_email"] = user_email
+                post_data["source"] = "product_launch"
+                file_path = write_post_file(post_data)
+                blog_id = save_post(post_data, file_path)
+                post_data["id"] = blog_id
+                blog_title = post_data["title"]
+                blog_url = bc.blog_base_url.rstrip("/") + "/" + post_data["slug"]
+                link_warnings = post_data.get("link_warnings")
+                log_audit(blog_id, user_email, "created", {"source": "product-launch", "topic": topic})
+                yield f"data: {json.dumps({'type': 'status', 'message': 'Blog ready.', 'blog_id': blog_id, 'title': blog_title})}\n\n"
+
+            if want_x or want_threads or want_linkedin:
+                yield f"data: {json.dumps({'type': 'status', 'message': 'Generating social drafts…'})}\n\n"
+
+            def _choice_tweets(choice):
+                if not choice:
+                    return []
+                tws = choice.get("tweets") or ([choice["tweet"]] if choice.get("tweet") else [])
+                tws = [t for t in tws if t]
+                if choice.get("link_reply"):
+                    tws.append(choice["link_reply"])
+                return [_cap_tweet_post_url(t.replace("[URL]", blog_url)) for t in tws]
+
+            def do_x_threads():
+                out = {"kind": "social", "x_id": None, "threads_id": None, "error": None}
+                try:
+                    res = repurpose_edm(launch, market)
+                    if want_x:
+                        choices = (res.get("x") or {}).get("choices") or []
+                        chosen = (
+                            next((c for c in choices if c.get("type") == "thread"), None)
+                            or next((c for c in choices if c.get("type") == "quick_win"), None)
+                            or (choices[0] if choices else None)
+                        )
+                        tweets = _choice_tweets(chosen)
+                        if tweets:
+                            xid = create_x_post(
+                                content=THREAD_SEP.join(tweets), market=market, editor_email=user_email,
+                                source_blog_post_id=blog_id, brand=brand, source="product_launch",
+                            )
+                            log_x_audit(xid, user_email, "created", {"source": "product-launch"})
+                            out["x_id"] = xid
+                    if want_threads:
+                        threads_text = (res.get("threads") or "").strip()
+                        if threads_text:
+                            tid = create_threads_post(
+                                content=threads_text, market=market, editor_email=user_email,
+                                source_blog_post_id=blog_id, brand=brand, source="product_launch",
+                            )
+                            log_threads_audit(tid, user_email, "created", {"source": "product-launch"})
+                            out["threads_id"] = tid
+                except Exception as exc:
+                    out["error"] = str(exc)
+                return out
+
+            def do_linkedin():
+                out = {"kind": "linkedin", "linkedin_id": None, "error": None}
+                try:
+                    res = generate_linkedin_from_changelog(launch, brand=brand)
+                    content = (res.get("content") or "").strip()
+                    if content:
+                        lid = create_linkedin_post(
+                            content=content, market=market, editor_email=user_email,
+                            source_blog_post_id=blog_id, brand=brand, source="product_launch",
+                        )
+                        log_linkedin_audit(lid, user_email, "created", {"source": "product-launch"})
+                        out["linkedin_id"] = lid
+                except Exception as exc:
+                    out["error"] = str(exc)
+                return out
+
+            results = {"x_id": None, "threads_id": None, "linkedin_id": None}
+            errors = {}
+            futures = []
+            if want_x or want_threads:
+                futures.append(loop.run_in_executor(None, do_x_threads))
+            if want_linkedin:
+                futures.append(loop.run_in_executor(None, do_linkedin))
+
+            for fut in asyncio.as_completed(futures):
+                res = await fut
+                if res.get("kind") == "social":
+                    results["x_id"] = res.get("x_id")
+                    results["threads_id"] = res.get("threads_id")
+                    if res.get("error"):
+                        errors["social"] = res["error"]
+                    else:
+                        made = [n for n, k in (("X", "x_id"), ("Threads", "threads_id")) if res.get(k)]
+                        if made:
+                            yield f"data: {json.dumps({'type': 'status', 'message': ' & '.join(made) + ' draft ready'})}\n\n"
+                else:
+                    results["linkedin_id"] = res.get("linkedin_id")
+                    if res.get("error"):
+                        errors["linkedin"] = res["error"]
+                    else:
+                        yield f"data: {json.dumps({'type': 'status', 'message': 'LinkedIn draft ready'})}\n\n"
+
+            if blog_id:
+                log_audit(blog_id, user_email, "launch_bundle", {
+                    "x_id": results["x_id"], "threads_id": results["threads_id"],
+                    "linkedin_id": results["linkedin_id"], "errors": errors or None,
+                })
+
+            done_payload = {
+                "type": "done", "blog_id": blog_id, "title": blog_title or "Product launch drafts",
+                "x_id": results["x_id"], "threads_id": results["threads_id"],
+                "linkedin_id": results["linkedin_id"], "errors": errors or None,
+            }
+            if link_warnings:
+                done_payload["link_warnings"] = link_warnings
+            yield f"data: {json.dumps(done_payload)}\n\n"
+
+        except Exception as e:
+            _err = str(e)
+            _msg = "Claude API is busy right now — please try again in a few seconds" if "overloaded_error" in _err else _err
+            yield f"data: {json.dumps({'type': 'error', 'message': _msg})}\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+# ── Product Launch → per-step JSON endpoints ────────────────────────────────────
+# The single streaming /api/generate-launch-bundle above does blog + X/Threads +
+# LinkedIn in one long-lived SSE response. On Vercel's serverless Python runtime
+# that connection is dropped before the (multi-minute) work finishes, surfacing in
+# the browser as "Failed to fetch". These endpoints split the same work into short,
+# plain-JSON request/response calls (one Claude call each) that the launch modal
+# drives in sequence — each finishes well within the platform's limits.
+
+class LaunchStepRequest(BaseModel):
+    launch_content: str
+    market: str | None = None
+    topic: str | None = None          # blog step only: headline/keyword hint
+    brand: str = "hitpay"
+    blog_id: int | None = None        # social/linkedin steps: link drafts to the blog
+    channels: list[str] = []          # social step: subset of {"x", "threads"}
+
+
+def _launch_blog_url(brand: str, blog_id: int | None) -> str:
+    """Resolve the [URL] target for social drafts: the freshly-created blog post's
+    URL when we have its id, else the brand blog homepage."""
+    from src.brand_config import get_brand_config
+    base = get_brand_config(brand).blog_base_url.rstrip("/")
+    if blog_id:
+        p = get_post(blog_id)
+        if p and p.get("slug"):
+            return base + "/" + p["slug"]
+    return base
+
+
+@app.post("/api/generate-launch/blog")
+def api_generate_launch_blog(body: LaunchStepRequest, user_email: str = Depends(require_auth)):
+    from src.brand_config import get_brand_config
+    launch = (body.launch_content or "").strip()
+    if not launch:
+        raise HTTPException(422, "Launch content is empty")
+    brand = body.brand or "hitpay"
+    market = body.market or None
+    topic = (body.topic or "").strip() or next(
+        (ln.strip() for ln in launch.splitlines() if ln.strip()), "product launch"
+    )[:150]
+
+    try:
+        post_data = generate_blog_post(topic, country=market, brand=brand, source_material=launch)
+    except Exception as e:
+        if "overloaded_error" in str(e):
+            raise HTTPException(503, "Claude API is busy right now — please try again in a few seconds")
+        raise HTTPException(500, f"Generation error: {e}")
+
+    existing = get_post_by_slug(post_data["slug"])
+    if existing:
+        import time
+        post_data["slug"] = f"{post_data['slug']}-{int(time.time())}"
+
+    post_data["editor_email"] = user_email
+    post_data["source"] = "product_launch"
+    file_path = write_post_file(post_data)
+    blog_id = save_post(post_data, file_path)
+    blog_url = get_brand_config(brand).blog_base_url.rstrip("/") + "/" + post_data["slug"]
+    log_audit(blog_id, user_email, "created", {"source": "product-launch", "topic": topic})
+    return {
+        "blog_id": blog_id,
+        "title": post_data["title"],
+        "blog_url": blog_url,
+        "link_warnings": post_data.get("link_warnings"),
+    }
+
+
+@app.post("/api/generate-launch/social")
+def api_generate_launch_social(body: LaunchStepRequest, user_email: str = Depends(require_auth)):
+    launch = (body.launch_content or "").strip()
+    if not launch:
+        raise HTTPException(422, "Launch content is empty")
+    brand = body.brand or "hitpay"
+    market = body.market or None
+    channels = set(body.channels or ["x", "threads"])
+    want_x = "x" in channels
+    want_threads = "threads" in channels
+    if not (want_x or want_threads):
+        raise HTTPException(422, "Select X and/or Threads")
+
+    blog_url = _launch_blog_url(brand, body.blog_id)
+    THREAD_SEP = "\n\n---\n\n"
+
+    def _choice_tweets(choice):
+        if not choice:
+            return []
+        tws = choice.get("tweets") or ([choice["tweet"]] if choice.get("tweet") else [])
+        tws = [t for t in tws if t]
+        if choice.get("link_reply"):
+            tws.append(choice["link_reply"])
+        return [_cap_tweet_post_url(t.replace("[URL]", blog_url)) for t in tws]
+
+    try:
+        res = repurpose_edm(launch, market)
+    except Exception as e:
+        if "overloaded_error" in str(e):
+            raise HTTPException(503, "Claude API is busy right now — please try again in a few seconds")
+        raise HTTPException(500, f"Generation error: {e}")
+
+    x_id = threads_id = None
+    if want_x:
+        choices = (res.get("x") or {}).get("choices") or []
+        chosen = (
+            next((c for c in choices if c.get("type") == "thread"), None)
+            or next((c for c in choices if c.get("type") == "quick_win"), None)
+            or (choices[0] if choices else None)
+        )
+        tweets = _choice_tweets(chosen)
+        if tweets:
+            x_id = create_x_post(
+                content=THREAD_SEP.join(tweets), market=market, editor_email=user_email,
+                source_blog_post_id=body.blog_id, brand=brand, source="product_launch",
+            )
+            log_x_audit(x_id, user_email, "created", {"source": "product-launch"})
+    if want_threads:
+        threads_text = (res.get("threads") or "").strip()
+        if threads_text:
+            threads_id = create_threads_post(
+                content=threads_text, market=market, editor_email=user_email,
+                source_blog_post_id=body.blog_id, brand=brand, source="product_launch",
+            )
+            log_threads_audit(threads_id, user_email, "created", {"source": "product-launch"})
+    return {"x_id": x_id, "threads_id": threads_id}
+
+
+@app.post("/api/generate-launch/linkedin")
+def api_generate_launch_linkedin(body: LaunchStepRequest, user_email: str = Depends(require_auth)):
+    from src.linkedin_generator import generate_linkedin_from_changelog
+    launch = (body.launch_content or "").strip()
+    if not launch:
+        raise HTTPException(422, "Launch content is empty")
+    brand = body.brand or "hitpay"
+    market = body.market or None
+
+    try:
+        res = generate_linkedin_from_changelog(launch, brand=brand)
+    except Exception as e:
+        if "overloaded_error" in str(e):
+            raise HTTPException(503, "Claude API is busy right now — please try again in a few seconds")
+        raise HTTPException(500, f"Generation error: {e}")
+
+    content = (res.get("content") or "").strip()
+    linkedin_id = None
+    if content:
+        linkedin_id = create_linkedin_post(
+            content=content, market=market, editor_email=user_email,
+            source_blog_post_id=body.blog_id, brand=brand, source="product_launch",
+        )
+        log_linkedin_audit(linkedin_id, user_email, "created", {"source": "product-launch"})
+    return {"linkedin_id": linkedin_id}
 
 
 # ── Automation ────────────────────────────────────────────────────────────────

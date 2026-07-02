@@ -55,6 +55,18 @@ def migrate_source_blog_post_id():
         )
 
 
+def migrate_source_column():
+    """Add a `source` provenance column to posts + social tables if missing.
+
+    Used to tag content generated from a product launch (source='product_launch').
+    """
+    conn = get_connection()
+    for table in ("posts", "x_posts", "threads_posts", "linkedin_posts"):
+        conn.run(
+            f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS source VARCHAR(50)"
+        )
+
+
 def save_feedback(user_email: str, message: str) -> int:
     conn = get_connection()
     rows = conn.run(
@@ -130,10 +142,10 @@ def save_post(post_data: dict, file_path: str) -> int:
         """
         INSERT INTO posts (title, slug, keyword, country, brand, status, date, meta_title,
                            meta_description, overview, categories, tags, file_path, word_count, content, source_url,
-                           editor_email)
+                           editor_email, source)
         VALUES (:title, :slug, :keyword, :country, :brand, :status, :date, :meta_title,
                 :meta_description, :overview, :categories, :tags, :file_path, :word_count, :content, :source_url,
-                :editor_email)
+                :editor_email, :source)
         RETURNING id
         """,
         title=post_data["title"],
@@ -153,6 +165,7 @@ def save_post(post_data: dict, file_path: str) -> int:
         content=post_data.get("content", ""),
         source_url=post_data.get("source_url", ""),
         editor_email=post_data.get("editor_email", None),
+        source=post_data.get("source", None),
     )
     return rows[0][0]
 

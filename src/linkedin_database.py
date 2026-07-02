@@ -41,12 +41,12 @@ def get_linkedin_posts_by_blog_post_id(blog_post_id: int) -> list:
 
 def create_linkedin_post(content: str, market: str = None, scheduled_at=None,
                          editor_email: str = None, source_blog_post_id: int = None,
-                         brand: str = "hitpay") -> int:
+                         brand: str = "hitpay", source: str = None) -> int:
     conn = get_connection()
     rows = conn.run(
         """
-        INSERT INTO linkedin_posts (content, market, brand, status, scheduled_at, editor_email, source_blog_post_id)
-        VALUES (:content, :market, :brand, 'draft', :scheduled_at, :editor_email, :source_blog_post_id)
+        INSERT INTO linkedin_posts (content, market, brand, status, scheduled_at, editor_email, source_blog_post_id, source)
+        VALUES (:content, :market, :brand, 'draft', :scheduled_at, :editor_email, :source_blog_post_id, :source)
         RETURNING id
         """,
         content=content,
@@ -55,6 +55,7 @@ def create_linkedin_post(content: str, market: str = None, scheduled_at=None,
         scheduled_at=scheduled_at,
         editor_email=editor_email,
         source_blog_post_id=source_blog_post_id,
+        source=source,
     )
     return rows[0][0]
 

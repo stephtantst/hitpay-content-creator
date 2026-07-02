@@ -588,7 +588,7 @@ COUNTRY_CONTEXT = {
 }
 
 
-def generate_blog_post(keyword: str, country: str = None, aeo_prompt: str = None, category: str = None, max_tokens: int = 16000, on_status=None, brand: str = "hitpay") -> dict:
+def generate_blog_post(keyword: str, country: str = None, aeo_prompt: str = None, category: str = None, max_tokens: int = 16000, on_status=None, brand: str = "hitpay", source_material: str = None) -> dict:
     """Generate a blog post for the given keyword.
 
     Args:
@@ -599,6 +599,10 @@ def generate_blog_post(keyword: str, country: str = None, aeo_prompt: str = None
         max_tokens: Claude response token limit (use 32000 for bulk/longer posts)
         on_status: Optional callback(message: str) for progress updates
         brand: Brand to generate for — "hitpay" or "smegrowthhub"
+        source_material: Optional raw launch document (EDM or PRD). When set, the
+            post is written as an announcement of the product launch it describes,
+            grounded in this text as the primary subject (internal/team-only notes
+            are stripped). Full AEO structure is still applied.
     """
     from src.brand_config import get_brand_config
     brand_config = get_brand_config(brand)
@@ -685,10 +689,35 @@ Before returning your JSON, verify every payment method name, currency, and plac
     aeo_line = f'\nPrimary AEO question this post must answer: "{aeo_prompt}"\n' if aeo_prompt else ""
     category_line = f'\nPreferred category for this post: {category}\n' if category else ""
 
+    launch_section = ""
+    if source_material:
+        launch_section = f"""
+## PRODUCT LAUNCH SOURCE MATERIAL — PRIMARY SUBJECT OF THIS POST
+This blog post announces the product launch described below. Treat this as the
+authoritative source for what is launching, who it's for, and its value. Write the
+article around it — the "{keyword}" topic is just the angle.
+
+STRICT RULES for using this material:
+- This may be a polished marketing email (EDM) or an internal product spec (PRD).
+- Extract ONLY customer-facing value. STRIP internal/team-only content: lines like
+  "Note for the team:", pricing rationale, "Limitations at Launch", "Support Prep",
+  target-audience/go-to-market notes, and any instructions aimed at staff.
+- Do NOT invent features, currencies, rates, or availability not stated here or in
+  the knowledge base below.
+- Still follow the full AEO structure and length rules (Quick Answer, question-form
+  H2/H3 sections, FAQ, schema) exactly as specified in the system prompt.
+
+LAUNCH MATERIAL:
+\"\"\"
+{source_material}
+\"\"\"
+
+"""
+
     internal_links_count = "at least 2" if brand == "smegrowthhub" else "exactly 3"
 
     user_prompt = f"""Write a blog post about: "{keyword}"
-{aeo_line}{category_line}{country_section}
+{aeo_line}{category_line}{launch_section}{country_section}
 ## Knowledge Base — Use for Factual Accuracy
 {mcp_context}
 {docs_section}
