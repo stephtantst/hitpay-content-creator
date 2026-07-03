@@ -2,6 +2,7 @@
 """FastAPI backend for HitPay Blog Post Generator UI."""
 
 import asyncio
+import csv
 import json
 import os
 import secrets
@@ -11,7 +12,7 @@ from pathlib import Path
 
 import httpx
 import uvicorn
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -59,6 +60,7 @@ from src.post_writer import (
     export_bulk_to_csv,
     export_to_csv,
     move_post_file,
+    parse_framer_csv,
     read_post_content,
     update_post_file,
     write_post_file,
@@ -405,6 +407,29 @@ def api_export_post(post_id: int, _: str = Depends(require_auth)):
         media_type="text/csv",
         filename=f"{post['slug']}.csv",
     )
+
+
+@app.post("/api/posts/{post_id}/import")
+async def api_import_post(post_id: int, file: UploadFile = File(...), user_email: str = Depends(require_auth)):
+    post = get_post(post_id)
+    if not post:
+        raise HTTPException(404, "Post not found")
+
+    raw = await file.read()
+    try:
+        parsed = parse_framer_csv(raw)
+    except UnicodeDecodeError:
+        raise HTTPException(400, "Could not read file — please upload a CSV exported from this tool")
+    except csv.Error as e:
+        raise HTTPException(400, f"Could not parse CSV: {e}")
+
+    if not parsed:
+        raise HTTPException(400, "CSV file has no data rows")
+
+    body = UpdatePostRequest(**parsed)
+    result = api_update_post(post_id, body, user_email)
+    log_audit(post_id, user_email, "imported_csv", {"filename": file.filename})
+    return result
 
 
 @app.get("/api/posts/{post_id}/audit-log")

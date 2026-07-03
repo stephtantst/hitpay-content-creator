@@ -2771,6 +2771,10 @@
         <button class="btn btn-secondary" onclick="exportPost()">
           ↓  Export CSV for Framer
         </button>
+        <button class="btn btn-secondary" onclick="importPostCsv()">
+          ⇧  Upload CSV
+        </button>
+        <input type="file" id="importCsvInput" accept=".csv" style="display:none" onchange="handleImportCsvFile(event)">
         <button class="btn btn-danger" onclick="deletePost()">
           ✕  Delete Post
         </button>
@@ -4778,6 +4782,42 @@ async function bulkChangeStatus(newStatus) {
 function exportPost() {
   if (!currentPost) return;
   window.open(`/api/posts/${currentPost.id}/export`, '_blank');
+}
+
+// ── Import ────────────────────────────────────────────────────────────────────
+function importPostCsv() {
+  if (!currentPost) return;
+  if (isDirty && !confirm('You have unsaved changes that will be overwritten by the CSV import. Continue?')) return;
+  document.getElementById('importCsvInput').value = '';
+  document.getElementById('importCsvInput').click();
+}
+
+async function handleImportCsvFile(event) {
+  const file = event.target.files[0];
+  if (!file || !currentPost) return;
+
+  const postId = currentPost.id;
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch(`/api/posts/${postId}/import`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (res.ok) {
+      showToast('CSV imported', 'success');
+      isDirty = false;
+      await loadPosts();
+      if (currentPost && currentPost.id === postId) await openPost(postId);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.detail || 'Import failed', 'error');
+    }
+  } catch {
+    showToast('Import failed', 'error');
+  }
 }
 
 // ── Tags ──────────────────────────────────────────────────────────────────────
@@ -8988,11 +9028,19 @@ function _getThrContent() {
 function thrMarkDirty() { thrIsDirty = true; }
 
 function updateThrCharCount() {
-  const len = (document.getElementById('thrContentInput')?.value || '').length;
+  const val = document.getElementById('thrContentInput')?.value || '';
   const el = document.getElementById('thrCharCount');
   if (!el) return;
-  el.textContent = `${len} / 500`;
-  el.className = 'x-char-count' + (len > 500 ? ' over' : len > 440 ? ' warn' : '');
+  if (val.includes(THR_THREAD_SEP)) {
+    const segs = val.split(THR_THREAD_SEP);
+    const longest = segs.reduce((m, s) => Math.max(m, s.length), 0);
+    el.textContent = `${segs.length}-post thread`;
+    el.className = 'x-char-count' + (longest > 500 ? ' over' : longest > 440 ? ' warn' : '');
+  } else {
+    const len = val.length;
+    el.textContent = `${len} / 500`;
+    el.className = 'x-char-count' + (len > 500 ? ' over' : len > 440 ? ' warn' : '');
+  }
 }
 
 function updateCreateThrCharCount() {

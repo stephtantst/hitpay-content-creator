@@ -1,10 +1,12 @@
 import yaml
 import json
 import csv
+import io
 import os
 import re
 from pathlib import Path
 import markdown as md_parser
+from markdownify import markdownify as _markdownify
 from config import POSTS_DIR
 
 
@@ -31,11 +33,29 @@ def _md_to_html(markdown_text: str) -> str:
     """
     html = md_parser.markdown(
         markdown_text,
-        extensions=["tables", "fenced_code"]
+        # nl2br turns single line breaks (e.g. the "Q:" / answer FAQ pattern)
+        # into <br> tags — otherwise they'd be lost once newlines are collapsed.
+        extensions=["tables", "fenced_code", "nl2br"]
     )
     # Collapse all newlines to a single space so the Body field stays on one
     # CSV line. This is the most common cause of failed Framer CSV imports.
     return " ".join(html.split())
+
+
+def _html_to_md(html: str) -> str:
+    """Convert a Framer Body HTML string back into Markdown.
+
+    Inverse of _md_to_html, used when re-importing an edited CSV. Block-level
+    structure (headings, paragraphs, lists, tables, blockquotes, links,
+    bold/italic) round-trips cleanly; exact original whitespace/line-break
+    syntax is not guaranteed to match byte-for-byte.
+    """
+    text = _markdownify(html, heading_style="ATX", bullets="-")
+    # Clean up the stray leading space markdownify leaves after a <br>-derived
+    # hard line break (e.g. "foo  \n bar" -> "foo  \nbar").
+    text = re.sub(r"(  \n) ", r"\1", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 def write_post_file(post_data: dict, target_dir: str = None) -> str:
     slug = post_data["slug"]
@@ -188,6 +208,52 @@ def export_to_csv(post: dict, file_path: str) -> str:
     csv_path = export_dir / f"{post['slug']}.csv"
     _write_framer_csv(csv_path, [_build_framer_row(post, file_path)])
     return str(csv_path)
+
+
+def _split_csv_list(value: str) -> list[str]:
+    """Split a comma-separated CSV cell (e.g. Category/Tags) back into a list."""
+    if not value:
+        return []
+    return [v.strip() for v in value.split(",") if v.strip()]
+
+
+# Reverse of FRAMER_CSV_FIELDS -> post field name
+_FRAMER_CSV_FIELD_MAP = {
+    "Name": "title",
+    "Slug": "slug",
+    "Date": "date",
+    "Meta Title": "meta_title",
+    "Meta Description": "meta_description",
+    "Overview": "overview",
+}
+
+
+def parse_framer_csv(file_bytes: bytes) -> dict:
+    """Parse a re-uploaded Framer-format CSV (see FRAMER_CSV_FIELDS) into post fields.
+
+    Returns a dict keyed by post field name (title, slug, date, meta_title,
+    meta_description, overview, categories, tags, content) — only for columns
+    present in the CSV header. Uses the first data row.
+    """
+    text = file_bytes.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(text))
+    row = next(reader, None)
+    if row is None:
+        return {}
+
+    result = {}
+    for csv_field, post_field in _FRAMER_CSV_FIELD_MAP.items():
+        if csv_field in row:
+            result[post_field] = row[csv_field] or ""
+
+    if "Category" in row:
+        result["categories"] = _split_csv_list(row["Category"])
+    if "Tags" in row:
+        result["tags"] = _split_csv_list(row["Tags"])
+    if "Body" in row and row["Body"]:
+        result["content"] = _html_to_md(row["Body"])
+
+    return result
 
 
 def export_bulk_to_csv(posts_with_paths: list[tuple]) -> str:
