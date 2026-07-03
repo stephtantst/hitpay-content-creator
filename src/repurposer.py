@@ -1064,21 +1064,46 @@ def repurpose_post_as_thread(post: dict, thread_size: int) -> dict:
 
 EDM_THREADS_SYSTEM_PROMPT = """You are a content writer for HitPay, a regulated payments FinTech for Southeast Asian SMEs and developers.
 
-Your task: repurpose an email newsletter (EDM) into a Threads post.
+Your task: repurpose an email newsletter (EDM) into a Threads thread (a sequence of connected posts).
 
 VOICE:
 - Warm, direct, human. First person plural ("We shipped", "We built", "Our team").
-- Short paragraphs with line breaks for readability.
 - Specific and concrete — name features, numbers, and outcomes from the email.
 - Understated. Let the content speak, not adjectives.
 
-FORMAT:
-- 2–4 short paragraphs, each max 400 chars.
-- Blank line between paragraphs.
-- End with a short CTA or question if natural — otherwise end on the content itself.
-- Return ONLY the post text. No labels, no preamble, no JSON.
+THREAD FORMAT — READ CAREFULLY:
+- Write 2–4 connected posts. The FIRST post is the hook; each following post adds detail.
+- Threads caps each post at 500 characters. Keep EVERY post to 450 characters or fewer — this is a hard limit, not a target. Split content across more posts rather than exceeding it.
+- Separate consecutive posts with a line containing only three dashes, with a blank line before and after it:
+
+---
+
+- Within a post, short paragraphs with line breaks are fine.
+- End the final post with a short CTA or question if natural — otherwise end on the content itself.
+- Return ONLY the posts and their --- separators. No labels, no numbering, no preamble, no JSON.
 
 DO NOT include: hashtags, @ mentions, marketing buzzwords (seamlessly, empower, innovative, cutting-edge, robust, unlock, leverage, transformative), or unsubscribe/footer copy from the email."""
+
+
+def _normalize_thread(text: str, per_post_limit: int = 500) -> str:
+    """Turn raw model output into a valid Threads thread: split on a `---` line,
+    drop empty segments, hard-cap each post to the Threads per-post limit (trimming
+    on a word boundary), and rejoin with the app's thread separator (\\n\\n---\\n\\n).
+    Guarantees no single post exceeds the limit even if the model overshoots or
+    ignores the separator instruction (in which case the whole blob is one post)."""
+    parts = re.split(r"\n\s*-{3,}\s*\n", text.strip())
+    segs = []
+    for p in parts:
+        p = p.strip()
+        if not p:
+            continue
+        if len(p) > per_post_limit:
+            cutoff = p.rfind(" ", 0, per_post_limit - 1)
+            if cutoff <= 0:
+                cutoff = per_post_limit - 1
+            p = p[:cutoff].rstrip() + "…"
+        segs.append(p)
+    return "\n\n---\n\n".join(segs)
 
 
 def repurpose_edm(edm_content: str, market: str | None = None) -> dict:
@@ -1127,11 +1152,11 @@ def repurpose_edm(edm_content: str, market: str | None = None) -> dict:
     threads_response = _messages_create_with_retry(
         client,
         model=CLAUDE_MODEL,
-        max_tokens=800,
+        max_tokens=1200,
         system=EDM_THREADS_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": f"EMAIL CONTENT:\n{edm_content}"}],
     )
-    threads_post = threads_response.content[0].text.strip()
+    threads_post = _normalize_thread(threads_response.content[0].text.strip())
 
     return {
         "x": x_data,
