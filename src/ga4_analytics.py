@@ -35,7 +35,7 @@ def _extract_slug(page_path: str) -> str | None:
     return match.group(1) if match else None
 
 
-def fetch_blog_analytics(access_token: str | None, days: int = 30) -> dict:
+def fetch_blog_analytics(access_token: str | None, days: int = 7) -> dict:
     """Return {"configured", "as_of", "data": {slug: metrics}} for all `/blog/*` pages.
 
     `access_token` is the current user's Google OAuth access token (analytics.readonly

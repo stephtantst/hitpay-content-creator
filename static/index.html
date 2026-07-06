@@ -2603,9 +2603,9 @@
             <th class="sortable" id="th-country" onclick="sortBy('country')">Market <span class="sort-arrow" id="sa-country"></span></th>
             <th class="sortable" id="th-created_at" onclick="sortBy('created_at')">Created <span class="sort-arrow" id="sa-created_at"></span></th>
             <th style="width:80px;" title="Repurposed to social platforms">Repurposed For</th>
-            <th class="tbl-col-analytics" style="width:80px;" title="GA4 sessions, last 30 days">Sessions</th>
-            <th class="tbl-col-analytics" style="width:70px;" title="GA4 users, last 30 days">Users</th>
-            <th class="tbl-col-analytics" style="width:90px;" title="GA4 average engagement time, last 30 days">Avg. Duration</th>
+            <th class="sortable tbl-col-analytics" id="th-ga_sessions" style="width:80px;" title="GA4 sessions, last 7 days" onclick="sortBy('ga_sessions')">Sessions <span class="sort-arrow" id="sa-ga_sessions"></span></th>
+            <th class="sortable tbl-col-analytics" id="th-ga_users" style="width:70px;" title="GA4 users, last 7 days" onclick="sortBy('ga_users')">Users <span class="sort-arrow" id="sa-ga_users"></span></th>
+            <th class="sortable tbl-col-analytics" id="th-ga_avg_duration" style="width:90px;" title="GA4 average engagement time, last 7 days" onclick="sortBy('ga_avg_duration')">Avg. Duration <span class="sort-arrow" id="sa-ga_avg_duration"></span></th>
             <th style="width:90px;">Actions</th>
           </tr>
         </thead>
@@ -2759,7 +2759,7 @@
 
     <!-- Analytics (published posts only) -->
     <div class="meta-section" id="analyticsSection" style="display:none;">
-      <div class="meta-section-title">📊 Analytics <span style="font-weight:400;color:var(--text-dim);">(last 30 days)</span></div>
+      <div class="meta-section-title">📊 Analytics <span style="font-weight:400;color:var(--text-dim);">(last 7 days)</span></div>
       <div id="analyticsSectionBody" style="font-size:12px;color:var(--text-dim);">Loading…</div>
     </div>
 
@@ -4368,7 +4368,7 @@ async function loadAnalyticsData() {
   if (analyticsLoading) return;
   analyticsLoading = true;
   try {
-    const res = await fetch('/api/analytics/blog?days=30');
+    const res = await fetch('/api/analytics/blog?days=7');
     const json = await res.json();
     analyticsData = (json.configured && json.data) ? json.data : {};
     if (json.error === 'not_authenticated') {
@@ -4524,7 +4524,7 @@ async function loadPostAnalytics(id, status) {
   body.textContent = 'Loading…';
 
   try {
-    const res = await fetch(`/api/posts/${id}/analytics?days=30`);
+    const res = await fetch(`/api/posts/${id}/analytics?days=7`);
     if (!res.ok) { body.textContent = 'Failed to load analytics.'; return; }
     const json = await res.json();
 
@@ -4542,7 +4542,7 @@ async function loadPostAnalytics(id, status) {
     }
     const m = json.metrics;
     if (!m || !m.sessions) {
-      body.textContent = 'No traffic recorded in the last 30 days.';
+      body.textContent = 'No traffic recorded in the last 7 days.';
       return;
     }
 
@@ -5907,11 +5907,21 @@ function sortBy(field) {
   renderOverview();
 }
 
+const GA_SORT_FIELDS = { ga_sessions: 'sessions', ga_users: 'users', ga_avg_duration: 'avg_duration' };
+
 function getSortedPosts(arr) {
+  const gaKey = GA_SORT_FIELDS[sortField];
   return [...arr].sort((a, b) => {
-    let av = a[sortField] || '', bv = b[sortField] || '';
-    if (typeof av === 'string') av = av.toLowerCase();
-    if (typeof bv === 'string') bv = bv.toLowerCase();
+    let av, bv;
+    if (gaKey) {
+      av = analyticsData[a.slug]?.[gaKey] || 0;
+      bv = analyticsData[b.slug]?.[gaKey] || 0;
+    } else {
+      av = a[sortField] || '';
+      bv = b[sortField] || '';
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+    }
     if (av < bv) return sortDir === 'asc' ? -1 : 1;
     if (av > bv) return sortDir === 'asc' ? 1 : -1;
     return 0;
@@ -5919,7 +5929,7 @@ function getSortedPosts(arr) {
 }
 
 function updateSortHeaders() {
-  const fields = ['title', 'status', 'country', 'created_at'];
+  const fields = ['title', 'status', 'country', 'created_at', 'ga_sessions', 'ga_users', 'ga_avg_duration'];
   fields.forEach(f => {
     const th = document.getElementById(`th-${f}`);
     const sa = document.getElementById(`sa-${f}`);
