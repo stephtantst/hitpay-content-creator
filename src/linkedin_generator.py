@@ -19,7 +19,13 @@ def _strip_url_from_body(text: str) -> str:
     via link_url (the "Source Blog Post" panel), so an inline URL is redundant
     and just eats into the character budget, risking truncation."""
     cleaned = _URL_RE.sub("", text)
-    return re.sub(r"[\s\-—.,]+$", "", cleaned).strip()
+    # Strip dangling connector punctuation left where the URL used to be
+    # (colon/dash/comma), but keep a genuine closing '.', '!', '?', or '…' —
+    # and add one back if the post is left without a sentence ending.
+    cleaned = re.sub(r"[\s\-—:,]+$", "", cleaned).strip()
+    if cleaned and not cleaned.endswith((".", "!", "?", "…", '"', "”")):
+        cleaned += "."
+    return cleaned
 
 _LINKEDIN_TOPICS: dict[str, list[str]] = {
     "SG": [
@@ -78,7 +84,8 @@ CONTENT RULES:
 - Ground every post in a specific market: SG, MY, or PH — never generic "businesses everywhere"
 - Reference real payment methods: PayNow, DuitNow, FPX, GCash, QR Ph, Borderless QR
 - The CTA link must be a real HitPay blog post (provided in slug list). Never invent slugs.
-- Don't enumerate feature lists. Tell a story through one specific scenario."""
+- Don't enumerate feature lists. Tell a story through one specific scenario.
+- Vary the scenario and any named example every time — do not default to recurring examples like a guesthouse owner in El Nido, a textile shop in Chinatown, or a merchant named "Maribel"."""
 
 LINKEDIN_ANNOUNCEMENT_SYSTEM_PROMPT = """You are a content strategist for HitPay, a Southeast Asian payment platform trusted by 30,000+ businesses.
 

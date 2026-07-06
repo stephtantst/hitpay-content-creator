@@ -10,15 +10,72 @@ Usage:
     # {"ok": True/False, "date": datetime, "x_id": int, "threads_id": int, "linkedin_id": int, "errors": dict}
 """
 import random
+import re
 from datetime import datetime, timezone, timedelta
 
 POST_HOUR_UTC = 1   # 09:00 SGT = 01:00 UTC
 THREAD_SEP = "\n\n---\n\n"
 BLOG_BASE = "https://hitpayapp.com/blog"
 
+# Minimum days required between two scheduled posts whose blog titles share the same theme.
+MIN_THEME_GAP_DAYS = 4
 
-def get_next_schedule_date() -> datetime:
-    """Return the next weekday after the latest scheduled draft across all platforms."""
+_THEME_STOPWORDS = {
+    "a", "an", "the", "for", "in", "on", "to", "of", "and", "or", "how",
+    "what", "why", "your", "you", "with", "is", "are", "best", "top",
+    "guide", "guides", "complete", "practical", "actually", "need", "needs",
+    "accept", "accepting", "via", "vs", "2026", "2025", "sme", "smb",
+    "smbs", "business", "businesses", "solution", "solutions", "system",
+    "systems", "link", "links", "online", "software", "methods", "method",
+    "payments", "payment",
+    # markets — different market, same theme should still count as similar
+    "singapore", "philippines", "philippine", "malaysia", "malaysian",
+    "sea", "southeast", "asia", "sg", "ph", "my",
+}
+
+
+def _extract_theme_keywords(title: str) -> set:
+    """Reduce a blog title to its core topic keywords (strip filler words, markets, years)."""
+    words = re.findall(r"[a-z0-9]+", (title or "").lower())
+    return {w for w in words if w not in _THEME_STOPWORDS and len(w) > 2}
+
+
+def _themes_similar(a: set, b: set) -> bool:
+    """True if two keyword sets overlap enough to be considered the same theme."""
+    if not a or not b:
+        return False
+    overlap = a & b
+    if not overlap:
+        return False
+    return len(overlap) / min(len(a), len(b)) >= 0.5
+
+
+def _get_scheduled_theme_dates() -> list:
+    """Return (theme_keywords, scheduled_at) for every post with an existing social draft."""
+    from src.database import get_connection
+
+    conn = get_connection()
+    rows = conn.run(
+        """
+        SELECT p.title, s.scheduled_at FROM (
+            SELECT source_blog_post_id, scheduled_at FROM x_posts       WHERE scheduled_at IS NOT NULL AND source_blog_post_id IS NOT NULL
+            UNION
+            SELECT source_blog_post_id, scheduled_at FROM threads_posts  WHERE scheduled_at IS NOT NULL AND source_blog_post_id IS NOT NULL
+            UNION
+            SELECT source_blog_post_id, scheduled_at FROM linkedin_posts WHERE scheduled_at IS NOT NULL AND source_blog_post_id IS NOT NULL
+        ) s
+        JOIN posts p ON p.id = s.source_blog_post_id
+        """
+    )
+    return [(_extract_theme_keywords(title), scheduled_at) for title, scheduled_at in rows if title]
+
+
+def get_next_schedule_date(theme_keywords: set = None) -> datetime:
+    """Return the next weekday after the latest scheduled draft across all platforms.
+
+    If theme_keywords is given, the date is pushed forward (skipping weekends)
+    until no similarly-themed post is already scheduled within MIN_THEME_GAP_DAYS.
+    """
     from src.database import get_connection
 
     conn = get_connection()
@@ -43,6 +100,17 @@ def get_next_schedule_date() -> datetime:
 
     while start.weekday() >= 5:
         start += timedelta(days=1)
+
+    if theme_keywords:
+        existing = _get_scheduled_theme_dates()
+        while any(
+            _themes_similar(theme_keywords, other_kw)
+            and abs((start.date() - other_dt.astimezone(timezone.utc).date()).days) < MIN_THEME_GAP_DAYS
+            for other_kw, other_dt in existing
+        ):
+            start += timedelta(days=1)
+            while start.weekday() >= 5:
+                start += timedelta(days=1)
 
     return start.replace(hour=POST_HOUR_UTC, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
 
@@ -82,7 +150,11 @@ def repurpose_and_schedule(post: dict, user_email: str, override_date: datetime 
     slug       = (post.get("slug") or "").strip()
     blog_url   = f"{BLOG_BASE}/{slug}" if slug else ""
 
-    slot_date = override_date if override_date is not None else get_next_schedule_date()
+    if override_date is not None:
+        slot_date = override_date
+    else:
+        theme_keywords = _extract_theme_keywords(post.get("title") or "")
+        slot_date = get_next_schedule_date(theme_keywords)
     errors: dict = {}
 
     # --- X ---

@@ -31,11 +31,16 @@ _STORY_SEEDS: dict[str, list[tuple]] = {
         ("bookshop", "Bukit Timah", "parents paying for tuition materials", "payment links"),
     ],
     "PH": [
-        ("beach resort", "El Nido, Palawan", "foreign tourists from the US, Australia, and Europe", "Borderless QR"),
+        ("beach resort", "Panglao, Bohol", "foreign tourists from the US, Australia, and Europe", "Borderless QR"),
         ("craft market stall", "Intramuros, Manila", "tourists using WeChat Pay or Alipay", "Borderless QR"),
-        ("surf school", "Siargao", "foreign guests without Philippine peso", "Borderless QR"),
+        ("boutique hotel", "Vigan, Ilocos Sur", "domestic tourists visiting the heritage district", "payment link"),
         ("sari-sari store", "Quezon City", "neighbourhood regulars", "GCash QR"),
-        ("island-hopping operator", "Coron, Palawan", "international tour groups", "Borderless QR"),
+        ("dive shop", "Moalboal, Cebu", "foreign divers paying in USD, EUR, or other wallets", "Borderless QR"),
+        ("food stall", "Baguio night market", "domestic tourists paying by e-wallet", "GCash QR"),
+        ("bakery", "Davao City", "OFW families paying with remittance funds", "GCash QR"),
+        ("pearl and jewelry stall", "Puerto Princesa, Palawan", "cruise-ship tourists on a short shore stop", "Borderless QR"),
+        ("coffee shop", "Tagaytay", "weekend day-trippers from Manila", "QR payments"),
+        ("tricycle-terminal store", "Iloilo City", "commuters switching from coins to e-wallets", "GCash QR"),
     ],
     "SEA": [
         ("small textile shop", "a heritage port city", "international tourists", "Borderless QR"),
@@ -126,22 +131,116 @@ STORYTELLING RULES:
 DO NOT include: hashtags, statistics or percentages, product feature lists, emojis (except 🧵 at the end of Post 1 in multi-part threads), marketing buzzwords (seamless, empower, innovate, frictionless, cutting-edge, robust)"""
 
 
+_OVERUSED_STORY_EXAMPLES = (
+    "a guesthouse owner in El Nido, a textile shop in Chinatown, a merchant named "
+    "\"Maribel\", an island-hopping tour operator in Coron (often named \"Rodel\" or "
+    "\"Gregorio\"), and a surf school in Siargao / Cloud 9 / General Luna — these have "
+    "been used so often they now read as templates, not stories"
+)
+
+_ALL_SEED_LOCATIONS = (
+    {loc for seeds in _STORY_SEEDS.values() for _, loc, _, _ in seeds}
+    | {loc for seeds in _SME_STORY_SEEDS.values() for _, loc, _, _ in seeds}
+)
+_ALL_SEED_LOCATION_WORDS = {w for loc in _ALL_SEED_LOCATIONS for w in re.findall(r"[A-Za-z]+", loc)}
+
+# Per-seed-location match keywords: the proper-noun words in each location string
+# (e.g. "Baguio" from "Baguio night market", "Panglao"/"Bohol" from "Panglao, Bohol").
+# Matching on these instead of the full location string is needed because generated
+# prose freely reorders/drops parts of it ("a night market in Baguio City" instead of
+# "Baguio night market").
+_SEED_LOCATION_KEYWORDS = {
+    loc: set(re.findall(r"[A-Z][a-zA-Z]+", loc)) for loc in _ALL_SEED_LOCATIONS
+}
+
+# Words that commonly open a story sentence but aren't the protagonist's name
+# (used when scanning the opening sentence for a proper noun), plus brand/product
+# terms that show up capitalized but aren't characters.
+_NAME_EXTRACTION_STOPWORDS = {
+    "we", "our", "the", "a", "an", "one", "when", "his", "her", "with", "for",
+    "in", "on", "at", "by", "after", "before", "most", "some", "almost",
+    "there", "beside", "every", "she", "he", "they", "it", "us", "you",
+    "your", "first", "met", "partner",
+    "hitpay", "gcash", "qr", "ph", "borderless", "duitnow", "fpx", "paynow",
+    "maya", "alipay", "wechat", "instapay", "kakaopay", "sgd", "myr", "php",
+}
+
+
+def _extract_protagonist_name(content: str) -> str | None:
+    """Best-effort extraction of the story's protagonist name from its opening
+    sentence — these stories always introduce a named merchant up front, but the
+    exact phrasing varies ("Rodel runs...", "We first met Crisanta...", "Our
+    partner Ferdie owns..."), so this scans for the first capitalized word that
+    isn't a sentence-starter, brand term, or known seed location."""
+    first_sentence = (content or "").strip().split(".")[0][:150]
+    for word in re.findall(r"[A-Z][a-z]{2,}", first_sentence):
+        if word.lower() in _NAME_EXTRACTION_STOPWORDS or word in _ALL_SEED_LOCATION_WORDS:
+            continue
+        return word
+    return None
+
+
+def _recent_thread_signatures(limit: int = 10) -> tuple:
+    """Return (protagonist_names, seed_locations) seen in the most recently created
+    Threads posts, so a new generation can avoid repeating the same character or
+    merchant setting (e.g. three different posts all featuring "Rodel" in Coron)."""
+    from src.database import get_connection
+
+    try:
+        conn = get_connection()
+        rows = conn.run(
+            "SELECT content FROM threads_posts "
+            "ORDER BY GREATEST(created_at, COALESCE(updated_at, created_at)) DESC LIMIT :lim",
+            lim=limit,
+        )
+    except Exception:
+        return set(), set()
+
+    names, locations = set(), set()
+    for (content,) in rows:
+        if not content:
+            continue
+        name = _extract_protagonist_name(content)
+        if name:
+            names.add(name)
+        for loc, keywords in _SEED_LOCATION_KEYWORDS.items():
+            if any(kw in content for kw in keywords):
+                locations.add(loc)
+    return names, locations
+
+
+def _avoid_recent_repeats_clause(recent_names: set) -> str:
+    if not recent_names:
+        return ""
+    return f"Do NOT reuse these recently-used character names: {', '.join(sorted(recent_names))}. "
+
+
 def _build_story_prompt(market: str | None, topic_hint: str | None, thread_size: int) -> str:
     slugs = _fetch_live_blog_slugs()
     urls_list = "\n".join(f"  {s}" for s in slugs)
 
+    # Always pick a fresh random seed for the concrete merchant/location grounding —
+    # even when a topic_hint is supplied (e.g. from a blog post title in Repurpose All,
+    # or the auto-selected HITPAY_TOPIC_POOL entry). Previously, supplying a topic_hint
+    # skipped the seed entirely, leaving the model to invent its own "default" merchant —
+    # which converged on the same handful of clichés across generations.
     market_key = market if market in _STORY_SEEDS else "SEA"
-    biz, location, customers, product = random.choice(_STORY_SEEDS[market_key])
+    recent_names, recent_locations = _recent_thread_signatures()
+    candidates = [s for s in _STORY_SEEDS[market_key] if s[1] not in recent_locations] or _STORY_SEEDS[market_key]
+    biz, location, customers, product = random.choice(candidates)
 
+    seed_ctx = (
+        f"Story seed (use as inspiration, not verbatim — invent your own specific human "
+        f"detail, do not reuse this seed's exact wording across different generations):\n"
+        f"- Merchant: {biz} in {location}\n"
+        f"- Their customers: {customers}\n"
+        f"- HitPay product that helped: {product}\n\n"
+        f"Do NOT default to overused examples: {_OVERUSED_STORY_EXAMPLES}. "
+        f"{_avoid_recent_repeats_clause(recent_names)}"
+        f"Vary the merchant type, location, and any names every time."
+    )
     if topic_hint:
-        seed_ctx = f"Topic direction: {topic_hint}\nStill ground it in a specific merchant story."
-    else:
-        seed_ctx = (
-            f"Story seed (use as inspiration, not verbatim):\n"
-            f"- Merchant: {biz} in {location}\n"
-            f"- Their customers: {customers}\n"
-            f"- HitPay product that helped: {product}"
-        )
+        seed_ctx += f"\n\nTopic direction (steer the theme, not the characters): {topic_hint}"
 
     if market == "MY":
         mkt_ctx = "Market: Malaysia. Currency: ringgit (MYR). Relevant: DuitNow, FPX, Borderless QR, tourist areas in Penang/KL/Melaka/Langkawi."
@@ -200,18 +299,25 @@ def _build_sme_story_prompt(market: str | None, topic_hint: str | None, thread_s
     from src.brand_config import get_brand_config
     bc = get_brand_config("smegrowthhub")
 
+    # Always pick a fresh random seed, even with a topic_hint — see _build_story_prompt
+    # for why (skipping it let the model default to the same recurring clichés).
     market_key = market if market in _SME_STORY_SEEDS else "SEA"
-    biz, location, scenario, lesson = random.choice(_SME_STORY_SEEDS[market_key])
+    recent_names, recent_locations = _recent_thread_signatures()
+    candidates = [s for s in _SME_STORY_SEEDS[market_key] if s[1] not in recent_locations] or _SME_STORY_SEEDS[market_key]
+    biz, location, scenario, lesson = random.choice(candidates)
 
+    seed_ctx = (
+        f"Story seed (use as inspiration, not verbatim — invent your own specific human "
+        f"detail, do not reuse this seed's exact wording across different generations):\n"
+        f"- Business: {biz} in {location}\n"
+        f"- Scenario: {scenario}\n"
+        f"- What they learned: {lesson}\n\n"
+        f"Do NOT default to overused examples: {_OVERUSED_STORY_EXAMPLES}. "
+        f"{_avoid_recent_repeats_clause(recent_names)}"
+        f"Vary the business type, location, and any names every time."
+    )
     if topic_hint:
-        seed_ctx = f"Topic direction: {topic_hint}\nStill ground it in a specific business owner's story."
-    else:
-        seed_ctx = (
-            f"Story seed (use as inspiration, not verbatim):\n"
-            f"- Business: {biz} in {location}\n"
-            f"- Scenario: {scenario}\n"
-            f"- What they learned: {lesson}"
-        )
+        seed_ctx += f"\n\nTopic direction (steer the theme, not the characters): {topic_hint}"
 
     if market == "MY":
         mkt_ctx = "Market: Malaysia. Reference real places (Bangsar, PJ, JB, Penang), real costs (EPF, SST), real tools."

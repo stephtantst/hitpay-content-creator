@@ -6,6 +6,7 @@ import csv
 import json
 import os
 import secrets
+import time
 import urllib.parse
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -108,6 +109,9 @@ def require_auth(request: Request) -> str:
     return email
 
 
+GOOGLE_OAUTH_SCOPE = "openid email profile https://www.googleapis.com/auth/analytics.readonly"
+
+
 @app.get("/auth/login")
 def auth_login(request: Request):
     if not GOOGLE_CLIENT_ID:
@@ -118,10 +122,12 @@ def auth_login(request: Request):
         "client_id": GOOGLE_CLIENT_ID,
         "redirect_uri": f"{BASE_URL}/auth/callback",
         "response_type": "code",
-        "scope": "openid email profile",
+        "scope": GOOGLE_OAUTH_SCOPE,
         "state": state,
         "access_type": "offline",
-        "prompt": "select_account",
+        # Force the consent screen every time so Google always re-issues a
+        # refresh token (it's only granted on the first consent otherwise).
+        "prompt": "consent",
     }
     return RedirectResponse(GOOGLE_AUTH_URL + "?" + urllib.parse.urlencode(params))
 
@@ -154,7 +160,8 @@ async def auth_callback(
         if token_res.status_code != 200:
             return RedirectResponse("/?auth_error=1")
 
-        access_token = token_res.json().get("access_token")
+        token_data = token_res.json()
+        access_token = token_data.get("access_token")
         userinfo_res = await client.get(
             GOOGLE_USERINFO_URL,
             headers={"Authorization": f"Bearer {access_token}"},
@@ -170,11 +177,53 @@ async def auth_callback(
 
     request.session["email"] = email
     request.session["name"] = user.get("name", "")
+    # Stashed for GA4 Data API calls (see get_ga_access_token below) — same
+    # pattern geo-tracker uses, just stored in this app's own session instead
+    # of a NextAuth JWT.
+    request.session["ga_access_token"] = access_token
+    request.session["ga_token_expires_at"] = time.time() + token_data.get("expires_in", 3600)
+    if token_data.get("refresh_token"):
+        request.session["ga_refresh_token"] = token_data["refresh_token"]
     try:
         log_login(email, user.get("name", ""))
     except Exception:
         pass  # Never block login due to logging failure
     return RedirectResponse("/")
+
+
+async def get_ga_access_token(request: Request) -> str | None:
+    """Return a valid Google OAuth access token for GA4 calls, refreshing if expired.
+
+    Returns None if the user hasn't (re-)logged in since this feature shipped
+    (no refresh token stored yet) or refresh fails — caller should surface a
+    "please sign in again" message rather than crash.
+    """
+    access_token = request.session.get("ga_access_token")
+    expires_at = request.session.get("ga_token_expires_at", 0)
+    if access_token and time.time() < expires_at - 60:
+        return access_token
+
+    refresh_token = request.session.get("ga_refresh_token")
+    if not refresh_token:
+        return None
+
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            GOOGLE_TOKEN_URL,
+            data={
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "refresh_token": refresh_token,
+                "grant_type": "refresh_token",
+            },
+        )
+    if res.status_code != 200:
+        return None
+
+    data = res.json()
+    request.session["ga_access_token"] = data.get("access_token")
+    request.session["ga_token_expires_at"] = time.time() + data.get("expires_in", 3600)
+    return data.get("access_token")
 
 
 @app.get("/auth/logout")
@@ -729,6 +778,33 @@ def api_status_durations(period: str = "month", _: str = Depends(require_auth)):
         ORDER BY period, status
     """)
     return _rows_to_dicts(conn, rows)
+
+
+@app.get("/api/analytics/blog")
+async def api_blog_analytics(request: Request, days: int = 30, _: str = Depends(require_auth)):
+    """Bulk GA4 sessions/users per post slug, for the overview table."""
+    from src.ga4_analytics import fetch_blog_analytics
+    access_token = await get_ga_access_token(request)
+    return fetch_blog_analytics(access_token, days)
+
+
+@app.get("/api/posts/{post_id}/analytics")
+async def api_post_analytics(post_id: int, request: Request, days: int = 30, _: str = Depends(require_auth)):
+    """GA4 metrics for a single post's slug, for the post detail view."""
+    post = get_post(post_id)
+    if not post:
+        raise HTTPException(404, "Post not found")
+
+    from src.ga4_analytics import fetch_blog_analytics
+    access_token = await get_ga_access_token(request)
+    result = fetch_blog_analytics(access_token, days)
+    metrics = result.get("data", {}).get(post["slug"], {})
+    return {
+        "configured": result.get("configured", False),
+        "error": result.get("error"),
+        "as_of": result.get("as_of"),
+        "metrics": metrics,
+    }
 
 
 @app.get("/api/feedback")

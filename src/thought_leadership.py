@@ -221,9 +221,33 @@ def _is_valid_blog_url(url: str) -> bool:
     return bool(re.match(r"^[a-zA-Z0-9_\-()/%.]+$", slug))
 
 
+_OVERUSED_STORY_EXAMPLES_TWEET = (
+    "a guesthouse owner in El Nido, a textile shop in Chinatown, and a merchant named "
+    "\"Maribel\" — these have been used so often they now read as templates, not stories"
+)
+
+_MERCHANT_ARCHETYPE_POOL = [
+    "cafe owner", "restaurant owner", "hawker stall owner", "catering business owner",
+    "bubble tea shop owner", "boutique fashion store owner", "electronics shop owner",
+    "pharmacy owner", "bookstore owner", "freelance designer", "tuition centre owner",
+    "cleaning company owner", "personal trainer", "events company owner",
+    "Shopify seller", "WooCommerce seller", "social commerce seller", "Instagram boutique owner",
+    "florist", "pet groomer", "dental clinic owner", "driving school owner", "gym owner",
+]
+
+_MERCHANT_NAME_POOL = [
+    "Amirah", "Wei Ling", "Grace", "Farah", "Hui Min", "Dhevi", "Sarah", "Aisyah",
+    "Kevin", "Faizal", "Marco", "Joel", "Ravi", "Daniel", "Nadia", "Jasmine",
+    "Elena", "Rina", "Michelle", "Adrian", "Bea", "Jomar", "Cathy", "Ferdie",
+]
+
+
 def _build_merchant_story_prompt(thread_size: int) -> str:
     slugs = _fetch_live_blog_slugs()
     urls_list = "\n".join(f"  {s}" for s in slugs)
+
+    archetype = random.choice(_MERCHANT_ARCHETYPE_POOL)
+    suggested_name = random.choice(_MERCHANT_NAME_POOL)
 
     slugs_str = urls_list
     example = json.dumps({
@@ -254,11 +278,8 @@ CONTENT FORMAT: 2-tweet story — no numbers, no thread emoji
 - Tweet 2: What changed. Concrete outcome. End with HitPay as the reason + [URL] as a literal placeholder.
 - Each tweet: 200–280 chars. Short sentences. Real details.
 
-MERCHANT ARCHETYPES — use one specific type:
-- F&B: cafe, restaurant, hawker stall, catering business, bubble tea shop
-- Retail: boutique fashion store, electronics shop, pharmacy, bookstore
-- Services: freelance designer, tuition centre, cleaning company, personal trainer, events company
-- E-commerce: Shopify/WooCommerce seller, social commerce seller, Instagram boutique
+MERCHANT ARCHETYPE FOR THIS STORY: {archetype}
+Suggested name (use this one, or another equally specific and varied name — never reuse a name from a previous story): {suggested_name}
 
 PAIN POINTS — pick the most compelling:
 - Manual reconciliation eating hours every week
@@ -267,6 +288,9 @@ PAIN POINTS — pick the most compelling:
 - High card fees on every transaction
 - Checkout friction causing abandoned sales
 - Cash flow gap between sale date and payout date
+
+DO NOT default to overused examples: {_OVERUSED_STORY_EXAMPLES_TWEET}. If your instinct is to write one of
+these, pick a different city, business, and name instead — every story must feel freshly invented.
 
 STYLE RULES:
 - Open with "She" or "He" or "They" — name a real-feeling archetype, not "a business owner"
@@ -878,9 +902,15 @@ def generate_thought_leadership_thread(
     # hot_take posts are intentionally text-only — no URL attached
     if content_type == "thought_leadership":
         link_url = None
-        # thought_leadership is text-only — strip any stray [URL] Claude may have added
-        tweets[-1] = tweets[-1].replace("[URL]", "").rstrip()\
-            .rstrip("…").rstrip(".").rstrip()
+        # thought_leadership is text-only — strip any stray [URL] Claude may have added.
+        # Only touch the tweet (and re-close the sentence) if [URL] was actually present —
+        # otherwise this was clobbering the tweet's own genuine closing full stop.
+        last = tweets[-1]
+        if "[URL]" in last:
+            last = last.replace("[URL]", "").rstrip().rstrip("…").rstrip()
+            if last and not last.endswith((".", "!", "?", "…")):
+                last += "."
+        tweets[-1] = last
     else:
         fallback = _SME_FALLBACK_URL if brand == "smegrowthhub" else _FALLBACK_URL
         link_url = data.get("link_url") or fallback

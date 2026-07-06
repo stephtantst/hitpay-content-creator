@@ -42,3 +42,8 @@ TYPEFULLY_SME_LINKEDIN_SOCIAL_SET_ID = os.getenv("TYPEFULLY_SME_LINKEDIN_SOCIAL_
 
 # Secret key for the automation endpoint (GitHub Actions weekly-post trigger)
 AUTOMATION_SECRET = os.getenv("AUTOMATION_SECRET", "")
+
+# GA4 Data API — same property geo-tracker tracks for hitpayapp.com. No service
+# account: uses the signed-in user's own Google OAuth token (see api.py auth flow),
+# scoped to whatever GA4 access their @hit-pay.com account already has.
+GA4_PROPERTY_ID = os.getenv("GA4_PROPERTY_ID", "")

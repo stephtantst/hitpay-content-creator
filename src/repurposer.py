@@ -15,10 +15,23 @@ def _cap_tweet(text: str, limit: int = 280) -> str:
     return text[:cutoff] + "…"
 
 
+def _finish_sentence(text: str) -> str:
+    """Ensure text ends with terminal punctuation, without eating a genuine one.
+
+    Strips dangling connector punctuation (colon/dash/comma) left behind where a
+    URL used to be, but leaves an existing closing '.', '!', '?', or '…' alone —
+    then adds a period only if none is present.
+    """
+    cleaned = re.sub(r'[\s\-—:,]+$', '', text).strip()
+    if cleaned and not cleaned.endswith(('.', '!', '?', '…', '"', '”')):
+        cleaned += '.'
+    return cleaned
+
+
 def _strip_url_from_body(text: str) -> str:
     """Remove any stray URLs from a tweet body. URLs belong in link_reply only."""
     cleaned = _URL_RE.sub("", text)
-    return re.sub(r'[\s\-—.,]+$', '', cleaned).strip()
+    return _finish_sentence(cleaned)
 
 
 def _cap_tweet_post_url(text: str, limit: int = 280) -> str:
@@ -63,7 +76,7 @@ def _move_url_to_reply(tweets: list[str]) -> list[str]:
     if not match:
         return tweets
     url = match.group(0).rstrip(".,)")
-    cleaned = _URL_RE.sub("", last).rstrip(" —,.—").strip()
+    cleaned = _finish_sentence(_URL_RE.sub("", last))
     result = list(tweets)
     if cleaned:
         result[-1] = cleaned
