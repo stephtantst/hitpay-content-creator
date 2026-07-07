@@ -17,8 +17,9 @@ from datetime import datetime, timezone
 from config import GA4_PROPERTY_ID
 
 _SLUG_RE = re.compile(r"^/(?:[a-z]{2}/)?blog/([^/?#]+)/?$")
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-_cache: dict[int, tuple[float, dict]] = {}
+_cache: dict[str, tuple[float, dict]] = {}
 _CACHE_TTL_SECONDS = 600
 
 
@@ -35,19 +36,37 @@ def _extract_slug(page_path: str) -> str | None:
     return match.group(1) if match else None
 
 
-def fetch_blog_analytics(access_token: str | None, days: int = 7) -> dict:
+def fetch_blog_analytics(
+    access_token: str | None,
+    days: int = 7,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict:
     """Return {"configured", "as_of", "data": {slug: metrics}} for all `/blog/*` pages.
 
     `access_token` is the current user's Google OAuth access token (analytics.readonly
     scope). If missing (e.g. GA4_PROPERTY_ID unset, or user hasn't re-authenticated
     since this feature shipped), returns {"configured": False}.
+
+    Pass `start_date`/`end_date` (YYYY-MM-DD) for a custom range; otherwise `days`
+    is used as a rolling "N days ago to today" window.
     """
     if not GA4_PROPERTY_ID:
         return {"configured": False, "data": {}}
     if not access_token:
         return {"configured": True, "error": "not_authenticated", "data": {}}
 
-    cached = _cache.get(days)
+    use_custom_range = bool(
+        start_date and end_date and _DATE_RE.match(start_date) and _DATE_RE.match(end_date)
+    )
+    if use_custom_range:
+        range_key = f"{start_date}:{end_date}"
+        ga_start, ga_end = start_date, end_date
+    else:
+        range_key = f"{days}d"
+        ga_start, ga_end = f"{days}daysAgo", "today"
+
+    cached = _cache.get(range_key)
     if cached and (time.time() - cached[0]) < _CACHE_TTL_SECONDS:
         return cached[1]
 
@@ -64,7 +83,7 @@ def fetch_blog_analytics(access_token: str | None, days: int = 7) -> dict:
     client = _get_client(access_token)
     request = RunReportRequest(
         property=f"properties/{GA4_PROPERTY_ID}",
-        date_ranges=[DateRange(start_date=f"{days}daysAgo", end_date="today")],
+        date_ranges=[DateRange(start_date=ga_start, end_date=ga_end)],
         dimensions=[Dimension(name="pagePath"), Dimension(name="hostName")],
         metrics=[
             Metric(name="sessions"),
@@ -104,7 +123,7 @@ def fetch_blog_analytics(access_token: str | None, days: int = 7) -> dict:
         response = client.run_report(request)
     except Exception as e:  # noqa: BLE001 - surface as data, don't crash the endpoint
         result = {"configured": True, "error": str(e), "data": {}}
-        _cache[days] = (time.time(), result)
+        _cache[range_key] = (time.time(), result)
         return result
 
     by_slug: dict[str, dict] = {}
@@ -146,5 +165,5 @@ def fetch_blog_analytics(access_token: str | None, days: int = 7) -> dict:
         "as_of": datetime.now(timezone.utc).isoformat(),
         "data": data,
     }
-    _cache[days] = (time.time(), result)
+    _cache[range_key] = (time.time(), result)
     return result

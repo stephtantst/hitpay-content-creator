@@ -781,15 +781,28 @@ def api_status_durations(period: str = "month", _: str = Depends(require_auth)):
 
 
 @app.get("/api/analytics/blog")
-async def api_blog_analytics(request: Request, days: int = 7, _: str = Depends(require_auth)):
+async def api_blog_analytics(
+    request: Request,
+    days: int = 7,
+    start: str = None,
+    end: str = None,
+    _: str = Depends(require_auth),
+):
     """Bulk GA4 sessions/users per post slug, for the overview table."""
     from src.ga4_analytics import fetch_blog_analytics
     access_token = await get_ga_access_token(request)
-    return fetch_blog_analytics(access_token, days)
+    return fetch_blog_analytics(access_token, days, start, end)
 
 
 @app.get("/api/posts/{post_id}/analytics")
-async def api_post_analytics(post_id: int, request: Request, days: int = 7, _: str = Depends(require_auth)):
+async def api_post_analytics(
+    post_id: int,
+    request: Request,
+    days: int = 7,
+    start: str = None,
+    end: str = None,
+    _: str = Depends(require_auth),
+):
     """GA4 metrics for a single post's slug, for the post detail view."""
     post = get_post(post_id)
     if not post:
@@ -797,7 +810,7 @@ async def api_post_analytics(post_id: int, request: Request, days: int = 7, _: s
 
     from src.ga4_analytics import fetch_blog_analytics
     access_token = await get_ga_access_token(request)
-    result = fetch_blog_analytics(access_token, days)
+    result = fetch_blog_analytics(access_token, days, start, end)
     metrics = result.get("data", {}).get(post["slug"], {})
     return {
         "configured": result.get("configured", False),

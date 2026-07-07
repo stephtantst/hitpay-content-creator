@@ -2544,6 +2544,17 @@
         <button class="view-switch-btn" id="vsw-board" onclick="setOverviewView('board')">⊞ Board</button>
       </div>
       <button class="view-switch-btn" id="analyticsToggleBtn" onclick="toggleAnalyticsColumns()" style="margin-left:8px;">📊 Analytics</button>
+      <select class="filter-select" id="analyticsPeriodSelect" style="display:none;margin-left:6px;width:auto;" onchange="onAnalyticsPeriodChange()">
+        <option value="7">Last 7 days</option>
+        <option value="30">Last 30 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="custom">Custom range…</option>
+      </select>
+      <span id="analyticsCustomRangeWrap" style="display:none;margin-left:6px;align-items:center;gap:4px;">
+        <input type="date" id="analyticsCustomStart" class="field-input" style="width:130px;" onchange="onAnalyticsCustomDateChange()" />
+        <span style="color:var(--text-dim);">–</span>
+        <input type="date" id="analyticsCustomEnd" class="field-input" style="width:130px;" onchange="onAnalyticsCustomDateChange()" />
+      </span>
     </div>
   </div>
 
@@ -2759,7 +2770,7 @@
 
     <!-- Analytics (published posts only) -->
     <div class="meta-section" id="analyticsSection" style="display:none;">
-      <div class="meta-section-title">📊 Analytics <span style="font-weight:400;color:var(--text-dim);">(last 7 days)</span></div>
+      <div class="meta-section-title">📊 Analytics <span style="font-weight:400;color:var(--text-dim);" id="analyticsSectionPeriodLabel">(last 7 days)</span></div>
       <div id="analyticsSectionBody" style="font-size:12px;color:var(--text-dim);">Loading…</div>
     </div>
 
@@ -4245,6 +4256,9 @@ let currentUser = null;
 let analyticsEnabled = localStorage.getItem('showAnalytics') === '1';
 let analyticsData = {}; // slug -> {sessions, users, avg_duration, bounce_rate, engagement_rate}
 let analyticsLoading = false;
+let analyticsPeriod = localStorage.getItem('analyticsPeriod') || '7'; // '7' | '30' | '90' | 'custom'
+let analyticsCustomStart = localStorage.getItem('analyticsCustomStart') || '';
+let analyticsCustomEnd = localStorage.getItem('analyticsCustomEnd') || '';
 // Repurpose state
 window._config = {};
 let _repurposeData = null;
@@ -4364,11 +4378,35 @@ function analyticsCell(p, field) {
   return '—';
 }
 
+function analyticsQueryParams() {
+  if (analyticsPeriod === 'custom' && analyticsCustomStart && analyticsCustomEnd) {
+    return `start=${analyticsCustomStart}&end=${analyticsCustomEnd}`;
+  }
+  return `days=${analyticsPeriod}`;
+}
+
+function analyticsPeriodLabel() {
+  if (analyticsPeriod === 'custom' && analyticsCustomStart && analyticsCustomEnd) {
+    return `${analyticsCustomStart} – ${analyticsCustomEnd}`;
+  }
+  return `last ${analyticsPeriod} days`;
+}
+
+function updateAnalyticsColumnTitles() {
+  const label = analyticsPeriodLabel();
+  const th = document.getElementById('th-ga_sessions');
+  const tu = document.getElementById('th-ga_users');
+  const td = document.getElementById('th-ga_avg_duration');
+  if (th) th.title = `GA4 sessions, ${label}`;
+  if (tu) tu.title = `GA4 users, ${label}`;
+  if (td) td.title = `GA4 average engagement time, ${label}`;
+}
+
 async function loadAnalyticsData() {
   if (analyticsLoading) return;
   analyticsLoading = true;
   try {
-    const res = await fetch('/api/analytics/blog?days=7');
+    const res = await fetch(`/api/analytics/blog?${analyticsQueryParams()}`);
     const json = await res.json();
     analyticsData = (json.configured && json.data) ? json.data : {};
     if (json.error === 'not_authenticated') {
@@ -4385,6 +4423,18 @@ async function loadAnalyticsData() {
 function applyAnalyticsToggleUI() {
   document.querySelector('.posts-table')?.classList.toggle('show-analytics-col', analyticsEnabled);
   document.getElementById('analyticsToggleBtn')?.classList.toggle('active', analyticsEnabled);
+  const periodSelect = document.getElementById('analyticsPeriodSelect');
+  if (periodSelect) {
+    periodSelect.style.display = analyticsEnabled ? 'inline-block' : 'none';
+    periodSelect.value = analyticsPeriod;
+  }
+  const customWrap = document.getElementById('analyticsCustomRangeWrap');
+  if (customWrap) {
+    customWrap.style.display = (analyticsEnabled && analyticsPeriod === 'custom') ? 'inline-flex' : 'none';
+    document.getElementById('analyticsCustomStart').value = analyticsCustomStart;
+    document.getElementById('analyticsCustomEnd').value = analyticsCustomEnd;
+  }
+  updateAnalyticsColumnTitles();
 }
 
 async function toggleAnalyticsColumns() {
@@ -4395,6 +4445,37 @@ async function toggleAnalyticsColumns() {
     await loadAnalyticsData();
   }
   renderOverview();
+}
+
+async function refreshAnalyticsForPeriodChange() {
+  analyticsData = {};
+  updateAnalyticsColumnTitles();
+  if (analyticsEnabled) {
+    await loadAnalyticsData();
+    renderOverview();
+  }
+  if (currentPost && document.getElementById('analyticsSection').style.display !== 'none') {
+    loadPostAnalytics(currentPost.id, currentPost.status);
+  }
+}
+
+async function onAnalyticsPeriodChange() {
+  analyticsPeriod = document.getElementById('analyticsPeriodSelect').value;
+  localStorage.setItem('analyticsPeriod', analyticsPeriod);
+  applyAnalyticsToggleUI();
+  if (analyticsPeriod !== 'custom' || (analyticsCustomStart && analyticsCustomEnd)) {
+    await refreshAnalyticsForPeriodChange();
+  }
+}
+
+async function onAnalyticsCustomDateChange() {
+  analyticsCustomStart = document.getElementById('analyticsCustomStart').value;
+  analyticsCustomEnd = document.getElementById('analyticsCustomEnd').value;
+  localStorage.setItem('analyticsCustomStart', analyticsCustomStart);
+  localStorage.setItem('analyticsCustomEnd', analyticsCustomEnd);
+  if (analyticsCustomStart && analyticsCustomEnd) {
+    await refreshAnalyticsForPeriodChange();
+  }
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -4522,9 +4603,11 @@ async function loadPostAnalytics(id, status) {
   }
   section.style.display = '';
   body.textContent = 'Loading…';
+  const periodLabel = document.getElementById('analyticsSectionPeriodLabel');
+  if (periodLabel) periodLabel.textContent = `(${analyticsPeriodLabel()})`;
 
   try {
-    const res = await fetch(`/api/posts/${id}/analytics?days=7`);
+    const res = await fetch(`/api/posts/${id}/analytics?${analyticsQueryParams()}`);
     if (!res.ok) { body.textContent = 'Failed to load analytics.'; return; }
     const json = await res.json();
 
@@ -4542,7 +4625,7 @@ async function loadPostAnalytics(id, status) {
     }
     const m = json.metrics;
     if (!m || !m.sessions) {
-      body.textContent = 'No traffic recorded in the last 7 days.';
+      body.textContent = `No traffic recorded in the ${analyticsPeriodLabel()}.`;
       return;
     }
 
