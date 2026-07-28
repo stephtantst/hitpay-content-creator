@@ -1,1 +1,1 @@
-# hitpay-blog-posts-generator
+# hitpay-content-creator
