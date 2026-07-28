@@ -45,6 +45,7 @@ from src.database import (
     migrate_x_repurposed_column,
     migrate_source_blog_post_id,
     migrate_source_column,
+    migrate_youtube_descriptions_table,
     list_feedback,
     list_logins,
     list_posts,
@@ -57,6 +58,11 @@ from src.database import (
     update_repurposed_content,
 )
 from src.generator import generate_blog_post, rewrite_blog_post
+from src.youtube_database import (
+    delete_youtube_description,
+    list_youtube_descriptions,
+    save_youtube_description,
+)
 from src.post_writer import (
     export_bulk_to_csv,
     export_to_csv,
@@ -75,7 +81,7 @@ GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    for migrate in (migrate_brand_column, migrate_x_repurposed_column, migrate_source_blog_post_id, migrate_source_column):
+    for migrate in (migrate_brand_column, migrate_x_repurposed_column, migrate_source_blog_post_id, migrate_source_column, migrate_youtube_descriptions_table):
         try:
             migrate()
         except Exception:
@@ -2912,6 +2918,59 @@ def api_automation_push_pending(request: Request):
             results["threads_posts"].append({"id": p["id"], "error": str(exc)})
 
     return results
+
+
+# ── YouTube description generator ───────────────────────────────────────────
+
+class GenerateYoutubeDescriptionRequest(BaseModel):
+    video_info: str
+    market: str | None = None
+    brand: str = "hitpay"
+
+
+@app.post("/api/youtube-descriptions/generate")
+def api_generate_youtube_description(
+    body: GenerateYoutubeDescriptionRequest,
+    user_email: str = Depends(require_auth),
+):
+    from src.youtube_description import generate_youtube_description
+
+    try:
+        result = generate_youtube_description(
+            body.video_info, market=body.market or None, brand=body.brand
+        )
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    except Exception as e:
+        if "overloaded_error" in str(e):
+            raise HTTPException(503, "Claude API is busy right now — please try again in a few seconds")
+        raise HTTPException(500, f"Generation error: {e}")
+
+    entry_id = save_youtube_description(
+        video_info=body.video_info,
+        description=result["description"],
+        market=result["market"],
+        source_post_id=result["source_post_id"],
+        source_post_slug=result["source_post_slug"],
+        source_post_title=result["source_post_title"],
+        editor_email=user_email,
+        brand=body.brand,
+    )
+    result["id"] = entry_id
+    return result
+
+
+@app.get("/api/youtube-descriptions")
+def api_list_youtube_descriptions(
+    market: str = None, brand: str = "hitpay", _: str = Depends(require_auth)
+):
+    return list_youtube_descriptions(market=market, brand=brand)
+
+
+@app.delete("/api/youtube-descriptions/{entry_id}")
+def api_delete_youtube_description(entry_id: int, _: str = Depends(require_auth)):
+    delete_youtube_description(entry_id)
+    return {"ok": True}
 
 
 if __name__ == "__main__":
