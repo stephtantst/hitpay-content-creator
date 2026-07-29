@@ -1845,11 +1845,6 @@
     .tweet-link-reply-wrap { border: 1px dashed var(--border); border-radius: 6px; padding: 0; overflow: hidden; margin-top: 6px; }
     .tweet-link-reply-wrap textarea { width: 100%; border: none; background: transparent; font-size: 12.5px; color: var(--text-dim); font-family: inherit; resize: none; outline: none; padding: 8px 12px; box-sizing: border-box; display: block; }
     .tweet-card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-    .typefully-panel { border: 1px solid var(--border); border-radius: 8px; padding: 14px; background: var(--hover-bg); }
-    .typefully-panel h4 { font-size: 13px; font-weight: 600; margin: 0 0 10px; }
-    .typefully-date { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .typefully-date label { font-size: 12px; color: var(--text-dim); }
-    .typefully-result { font-size: 12.5px; color: #16a34a; margin-top: 8px; font-weight: 500; }
     .btn-success { background: #16a34a; color: #fff; border: none; border-radius: 6px; padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
     .btn-success:hover { background: #15803d; }
 
@@ -3115,23 +3110,7 @@
             <button class="btn btn-primary" id="xSaveBtn" onclick="saveXPost()">↑ Save Changes</button>
             <button class="btn btn-danger" onclick="deleteXPost()">✕ Delete Post</button>
           </div>
-          <button class="btn" id="xSaveAndSyncBtn" onclick="saveAndSyncXPost()" style="display:none;width:100%;margin-top:8px;font-size:13px;" title="Save edits and create a new Typefully draft with updated content">↑ Save &amp; sync to Typefully ↗</button>
-          <div id="xSyncResult" style="display:none;font-size:12px;font-weight:500;padding:6px 8px;border-radius:6px;margin-top:8px;"></div>
-        </div>
-
-        <div class="meta-section" id="xTypefullySection" style="display:none;">
-          <div class="meta-section-title">Publish via Typefully</div>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <div style="display:flex;gap:6px;">
-              <button class="btn" id="xSaveDraftBtn" onclick="xPushToTypefully('draft')" style="flex:1;font-size:13px;">Save Draft</button>
-              <button class="btn btn-primary" id="xPostNowBtn" onclick="xPushToTypefully('now')" style="flex:1;font-size:13px;">Post Now ↗</button>
-            </div>
-            <div style="display:flex;gap:6px;align-items:center;">
-              <input type="datetime-local" id="xTypefullyScheduleDate" class="field-input" style="flex:1;font-size:12px;padding:4px 8px;" />
-              <button class="btn" id="xScheduleBtn" onclick="xPushToTypefully('schedule')" style="white-space:nowrap;font-size:13px;">Schedule ↗</button>
-            </div>
-            <div id="xTypefullyResult" style="display:none;font-size:12px;font-weight:500;padding:6px 8px;border-radius:6px;"></div>
-          </div>
+          <button class="btn" onclick="navigator.clipboard.writeText(currentXPost?.content || '').then(() => showToast('Copied to clipboard', 'success'))" style="width:100%;margin-top:8px;font-size:13px;">⎘ Copy to Clipboard</button>
         </div>
 
         <div class="meta-section" id="xAuditSection" style="display:none;">
@@ -3355,19 +3334,8 @@
             <button class="btn btn-danger" onclick="deleteThrPost()">✕ Delete Post</button>
           </div>
         </div>
-        <div class="meta-section" id="thrTypefullySection" style="display:none;">
-          <div class="meta-section-title">Publish via Typefully</div>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <div style="display:flex;gap:6px;">
-              <button class="btn" id="thrSaveDraftBtn" onclick="thrPushToTypefully('draft')" style="flex:1;font-size:13px;">Save Draft</button>
-              <button class="btn btn-primary" id="thrPostNowBtn" onclick="thrPushToTypefully('now')" style="flex:1;font-size:13px;">Post Now ↗</button>
-            </div>
-            <div style="display:flex;gap:6px;align-items:center;">
-              <input type="datetime-local" id="thrTypefullyScheduleDate" class="field-input" style="flex:1;font-size:12px;padding:4px 8px;" />
-              <button class="btn" id="thrScheduleBtn" onclick="thrPushToTypefully('schedule')" style="white-space:nowrap;font-size:13px;">Schedule ↗</button>
-            </div>
-            <div id="thrTypefullyResult" style="display:none;font-size:12px;font-weight:500;padding:6px 8px;border-radius:6px;"></div>
-          </div>
+        <div class="meta-section">
+          <button class="btn" onclick="navigator.clipboard.writeText(currentThrPost?.content || '').then(() => showToast('Copied to clipboard', 'success'))" style="width:100%;font-size:13px;">⎘ Copy to Clipboard</button>
         </div>
         <div class="meta-section" id="thrAuditSection" style="display:none;">
           <div class="meta-section-title">History</div>
@@ -3589,19 +3557,8 @@
             <button class="btn btn-danger" onclick="deleteLiPost()">✕ Delete Post</button>
           </div>
         </div>
-        <div class="meta-section" id="liTypefullySection" style="display:none;">
-          <div class="meta-section-title">Publish via Typefully</div>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <div style="display:flex;gap:6px;">
-              <button class="btn" id="liSaveDraftBtn" onclick="liPushToTypefully('draft')" style="flex:1;font-size:13px;">Save Draft</button>
-              <button class="btn btn-primary" id="liPostNowBtn" onclick="liPushToTypefully('now')" style="flex:1;font-size:13px;">Post Now ↗</button>
-            </div>
-            <div style="display:flex;gap:6px;align-items:center;">
-              <input type="datetime-local" id="liTypefullyScheduleDate" class="field-input" style="flex:1;font-size:12px;padding:4px 8px;" />
-              <button class="btn" id="liScheduleBtn" onclick="liPushToTypefully('schedule')" style="white-space:nowrap;font-size:13px;">Schedule ↗</button>
-            </div>
-            <div id="liTypefullyResult" style="display:none;font-size:12px;font-weight:500;padding:6px 8px;border-radius:6px;"></div>
-          </div>
+        <div class="meta-section">
+          <button class="btn" onclick="navigator.clipboard.writeText(currentLiPost?.content || '').then(() => showToast('Copied to clipboard', 'success'))" style="width:100%;font-size:13px;">⎘ Copy to Clipboard</button>
         </div>
         <div class="meta-section" id="liAuditSection" style="display:none;">
           <div class="meta-section-title">History</div>
@@ -6699,9 +6656,6 @@ function renderFormatCard(key) {
       const cId = `hvCount_${i}`;
       const lrId = `hvLR_${i}`;
       const desc = STYLE_DESC[v.style] || '';
-      const typefullyBtn = window._config.typefully_enabled
-        ? `<button class="btn btn-secondary" style="font-size:12px;" onclick="pushHookVariantToTypefully(${i})">→ Typefully</button>`
-        : '';
       html += `<div class="tweet-card" style="margin-bottom:4px;">
         <div class="tweet-card-label" style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:12px;font-weight:700;color:var(--accent);">${escHtml(v.style)}</span>
@@ -6714,7 +6668,6 @@ function renderFormatCard(key) {
         </div>
         <div class="tweet-card-actions" style="margin-top:8px;">
           <button class="btn btn-primary" style="font-size:12px;" onclick="addHookVariantToXDraft(${i})">＋ Add to X Drafts</button>
-          ${typefullyBtn}
           <button class="btn btn-secondary" style="font-size:12px;" onclick="copyHookVariant(${i})">⎘ Copy</button>
         </div>
       </div>`;
@@ -6781,23 +6734,9 @@ function renderFormatCard(key) {
     </div>
   </div>`;
 
-  const typefullyBtn = window._config.typefully_enabled
-    ? `<button class="btn btn-secondary" onclick="openTypefullyPanel('${ck}')">→ Send to Typefully</button>`
-    : '';
   html += `<div class="tweet-card-actions">
     <button class="btn btn-primary" onclick="addToXDraft('${key}')">＋ Add to X Drafts</button>
-    ${typefullyBtn}
     <button class="btn btn-secondary" onclick="copyThread('${key}')">⎘ Copy</button>
-  </div>`;
-
-  html += `<div id="typefullyPanel_${ck}" style="display:none;" class="typefully-panel">
-    <h4>Schedule on Typefully</h4>
-    <div class="typefully-date">
-      <label>Schedule (optional):</label>
-      <input type="datetime-local" id="typefullyDate_${ck}" class="field-input" style="font-size:12px;padding:4px 8px;" />
-      <button class="btn-success" onclick="pushToTypefully('${key}')">Send Draft</button>
-    </div>
-    <div class="typefully-result" id="typefullyResult_${ck}" style="display:none;"></div>
   </div>`;
 
   content.innerHTML = html;
@@ -7262,50 +7201,6 @@ async function addToXDraft(key) {
   }
 }
 
-function openTypefullyPanel(ck) {
-  const panel = document.getElementById(`typefullyPanel_${ck}`);
-  if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-}
-
-async function pushToTypefully(key) {
-  if (!currentPost || !_repurposeData) return;
-  const ck = _ctxKey(key);
-  const { tweets, linkReply } = _collectEditedTweets(key);
-  const dateEl = document.getElementById(`typefullyDate_${ck}`);
-  const scheduleDate = dateEl && dateEl.value ? new Date(dateEl.value).toISOString() : null;
-  const resultEl = document.getElementById(`typefullyResult_${ck}`);
-  if (resultEl) { resultEl.style.display = 'none'; resultEl.textContent = ''; }
-  try {
-    const res = await fetch(`/api/posts/${currentPost.id}/typefully`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        format_key: key,
-        blog_url: _getBlogUrl(),
-        schedule_date: scheduleDate,
-        tweets,
-        link_reply: linkReply,
-      }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      showToast(err.detail || 'Typefully error', 'error');
-      return;
-    }
-    const data = await res.json();
-    if (resultEl) {
-      resultEl.style.display = 'block';
-      if (data.downgraded_to_draft) {
-        resultEl.textContent = `✓ Saved as draft — X blocks URL scheduling via API. Schedule manually in Typefully.`;
-      } else {
-        resultEl.textContent = data.scheduled ? `✓ Scheduled in Typefully` : `✓ Saved as draft in Typefully`;
-      }
-    }
-    showToast(data.downgraded_to_draft ? 'Saved as draft (see note)' : 'Sent to Typefully', data.downgraded_to_draft ? 'warn' : 'success');
-  } catch (e) {
-    showToast('Error sending to Typefully', 'error');
-  }
-}
 
 function copyThread(key) {
   const { tweets, linkReply } = _collectEditedTweets(key);
@@ -7359,32 +7254,6 @@ function copyHookVariant(i) {
   );
 }
 
-async function pushHookVariantToTypefully(i) {
-  if (!currentPost || !_repurposeData) return;
-  const { tweet, link_reply } = _getHookVariantFromDOM(i);
-  if (!tweet) return;
-  try {
-    const res = await fetch(`/api/posts/${currentPost.id}/typefully`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        format_key: `hook_variant_${i}`,
-        blog_url: _getBlogUrl(),
-        schedule_date: null,
-        tweets: [tweet],
-        link_reply,
-      }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      showToast(err.detail || 'Typefully error', 'error');
-      return;
-    }
-    showToast('Sent to Typefully', 'success');
-  } catch (e) {
-    showToast('Error sending to Typefully', 'error');
-  }
-}
 
 async function startRepurpose() {
   if (!currentPost) return;
@@ -7493,22 +7362,6 @@ function renderThreadResult(result) {
     ? `<div class="rp2-visual-note"><span class="rp2-visual-note-icon">💡</span><span>${escHtml(result.visual_note)}</span></div>`
     : '';
 
-  const typefullyEnabled = window._config && window._config.typefully_enabled;
-  const typefullyHtml = typefullyEnabled ? `
-    <div class="typefully-panel" style="margin-top:8px;">
-      <h4>Publish via Typefully</h4>
-      <div style="display:flex;gap:6px;margin-bottom:8px;">
-        <button class="btn" style="flex:1;font-size:12px;" onclick="rpThreadTypefully('draft')">Save Draft</button>
-        <button class="btn btn-primary" style="flex:1;font-size:12px;" onclick="rpThreadTypefully('now')">Post Now ↗</button>
-      </div>
-      <div class="typefully-date">
-        <label>Schedule:</label>
-        <input type="datetime-local" id="rpThreadScheduleDate" class="field-input" style="flex:1;font-size:12px;padding:4px 8px;" />
-        <button class="btn" onclick="rpThreadTypefully('schedule')" style="font-size:12px;white-space:nowrap;">Schedule ↗</button>
-      </div>
-      <div id="rpThreadTypefullyResult" class="typefully-result" style="display:none;margin-top:6px;"></div>
-    </div>` : '';
-
   wrap.innerHTML = `<div class="rp2-card" style="flex:1;">
     <div class="rp2-card-header">
       <div class="rp2-card-meta">
@@ -7517,7 +7370,7 @@ function renderThreadResult(result) {
       ${result.topic ? `<div class="rp2-card-title">${escHtml(result.topic)}</div>` : ''}
     </div>
     <div class="rp2-card-body">
-      ${tweetsHtml}${linkHtml}${visualHtml}${typefullyHtml}
+      ${tweetsHtml}${linkHtml}${visualHtml}
     </div>
     <div class="rp2-card-footer">
       <button class="rp2-regen-btn" onclick="startRepurpose()">↺ Regen</button>
@@ -7578,48 +7431,6 @@ async function rpThreadAddToXDraft() {
   }
 }
 
-async function rpThreadTypefully(mode) {  // 'draft' | 'now' | 'schedule'
-  if (!currentPost) return;
-  const tweets = _getRpThreadTweets();
-  const linkReply = _getRpLinkReply();
-  let scheduleDate = null;
-  if (mode === 'schedule') {
-    const val = document.getElementById('rpThreadScheduleDate')?.value;
-    if (!val) { showToast('Pick a date and time first', 'error'); return; }
-    scheduleDate = new Date(val).toISOString();
-  }
-  const resultEl = document.getElementById('rpThreadTypefullyResult');
-  try {
-    const res = await fetch(`/api/posts/${currentPost.id}/typefully`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        format_key: 'thread',
-        blog_url: _getBlogUrl(),
-        schedule_date: scheduleDate,
-        post_now: mode === 'now',
-        tweets,
-        link_reply: linkReply,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) { showToast(data.detail || 'Typefully error', 'error'); return; }
-    if (data.link_warning) {
-      showToast(`⚠ ${data.link_warning} — update the link before publishing`, 'error');
-    }
-    const msg = mode === 'now' ? 'Posted ✓' : mode === 'schedule' ? 'Scheduled ✓' : 'Saved as draft ✓';
-    const linkLabel = mode === 'draft' ? 'open in Typefully ↗' : 'view ↗';
-    if (resultEl) {
-      resultEl.style.display = 'block';
-      resultEl.innerHTML = data.typefully_url
-        ? `${msg} — <a href="${escHtml(data.typefully_url)}" target="_blank" style="color:inherit;">${linkLabel}</a>`
-        : msg;
-    }
-    showToast(msg, 'success');
-  } catch (e) {
-    showToast('Error pushing to Typefully', 'error');
-  }
-}
 
 // ── Editor avatar helpers ─────────────────────────────────────────────────────
 const AVATAR_COLORS = ['#6366f1','#ec4899','#14b8a6','#f97316','#8b5cf6','#0ea5e9','#84cc16','#f43f5e'];
@@ -8632,77 +8443,9 @@ function populateXEditor(post) {
 
   loadXAuditLog(post.id);
 
-  const typefullySection = document.getElementById('xTypefullySection');
-  if (typefullySection) {
-    typefullySection.style.display = window._config.typefully_enabled ? '' : 'none';
-    document.getElementById('xTypefullyResult').style.display = 'none';
-    document.getElementById('xTypefullyScheduleDate').value = '';
-  }
-
-  const syncBtn = document.getElementById('xSaveAndSyncBtn');
-  const syncResult = document.getElementById('xSyncResult');
-  if (syncBtn) {
-    syncBtn.style.display = (window._config.typefully_enabled && post.status === 'scheduled') ? '' : 'none';
-    syncResult.style.display = 'none';
-  }
-
   loadSourcePostForSocialPost('x', post.source_blog_post_id);
 }
 
-async function xPushToTypefully(mode) {  // mode: 'draft' | 'now' | 'schedule'
-  if (!currentXPost) return;
-  const resultEl = document.getElementById('xTypefullyResult');
-  const saveDraftBtn = document.getElementById('xSaveDraftBtn');
-  const postNowBtn = document.getElementById('xPostNowBtn');
-  const scheduleBtn = document.getElementById('xScheduleBtn');
-
-  let scheduleDate = null;
-  if (mode === 'schedule') {
-    const val = document.getElementById('xTypefullyScheduleDate').value;
-    if (!val) { showToast('Pick a date and time to schedule', 'error'); return; }
-    scheduleDate = new Date(val).toISOString();
-  }
-
-  [saveDraftBtn, postNowBtn, scheduleBtn].forEach(b => b && (b.disabled = true));
-  resultEl.style.display = 'none';
-
-  try {
-    const res = await fetch(`/api/x-posts/${currentXPost.id}/push-to-typefully`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schedule_date: scheduleDate, post_now: mode === 'now' }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      resultEl.textContent = data.detail || 'Failed to push to Typefully';
-      resultEl.style.background = 'var(--danger-bg, #fee2e2)';
-      resultEl.style.color = 'var(--danger, #dc2626)';
-      resultEl.style.display = 'block';
-      return;
-    }
-    if (data.link_warning) {
-      showToast(`⚠ ${data.link_warning} — update the link before publishing`, 'error');
-    }
-    const msg = mode === 'now' ? 'Posted ✓' : mode === 'schedule' ? 'Scheduled ✓' : 'Saved as draft ✓';
-    const linkLabel = mode === 'draft' ? 'open & publish in Typefully ↗' : 'view in Typefully ↗';
-    resultEl.style.background = 'var(--success-bg, #dcfce7)';
-    resultEl.style.color = 'var(--success, #16a34a)';
-    resultEl.style.display = 'block';
-    if (data.typefully_url) {
-      resultEl.innerHTML = `${msg} — <a href="${escHtml(data.typefully_url)}" target="_blank" style="color:inherit;">${linkLabel}</a>`;
-    } else {
-      resultEl.textContent = msg;
-    }
-    await loadXPosts();
-  } catch (e) {
-    resultEl.textContent = 'Network error — try again';
-    resultEl.style.background = 'var(--danger-bg, #fee2e2)';
-    resultEl.style.color = 'var(--danger, #dc2626)';
-    resultEl.style.display = 'block';
-  } finally {
-    [saveDraftBtn, postNowBtn, scheduleBtn].forEach(b => b && (b.disabled = false));
-  }
-}
 
 function toggleXStatusFields(status) {
   document.getElementById('xScheduledSection').style.display = status === 'scheduled' ? 'block' : 'none';
@@ -8808,65 +8551,6 @@ async function deleteXPost() {
   renderXChipCounts();
   renderXOverview();
   showToast('Post deleted');
-}
-
-// ── X Save & Sync ─────────────────────────────────────────────────────────────
-async function saveAndSyncXPost() {
-  if (!currentXPost) return;
-  const content = _getXContent().trim();
-  if (!content) { showToast('Content cannot be empty', 'error'); return; }
-
-  const market = document.getElementById('xMarket').value;
-  const scheduledAt = localDatetimeToISO(document.getElementById('xScheduledAt').value);
-  const btn = document.getElementById('xSaveAndSyncBtn');
-  const resultEl = document.getElementById('xSyncResult');
-
-  btn.disabled = true;
-  btn.textContent = 'Syncing…';
-  resultEl.style.display = 'none';
-
-  try {
-    const res = await fetch(`/api/x-posts/${currentXPost.id}/update-and-sync`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, market: market || null, scheduled_at: scheduledAt }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      resultEl.textContent = data.detail || 'Sync failed — try again';
-      resultEl.style.background = 'var(--danger-bg, #fee2e2)';
-      resultEl.style.color = 'var(--danger, #dc2626)';
-      resultEl.style.display = 'block';
-      return;
-    }
-    xIsDirty = false;
-    currentXPost = { ...currentXPost, content, market: market || null };
-    const idx = xPosts.findIndex(p => p.id === currentXPost.id);
-    if (idx !== -1) xPosts[idx] = { ...xPosts[idx], ...currentXPost };
-    renderXPostList();
-    if (xCurrentView === 'overview') renderXOverview();
-    loadXAuditLog(currentXPost.id);
-
-    resultEl.style.background = 'var(--success-bg, #dcfce7)';
-    resultEl.style.color = 'var(--success, #16a34a)';
-    let html = 'Saved &amp; synced ✓';
-    if (data.typefully_url) {
-      html += ` — <a href="${escHtml(data.typefully_url)}" target="_blank" style="color:inherit;">view new draft ↗</a>`;
-    }
-    if (data.resync_warning) {
-      html += `<br><span style="font-weight:400;opacity:0.85;">${escHtml(data.resync_warning)}</span>`;
-    }
-    resultEl.innerHTML = html;
-    resultEl.style.display = 'block';
-  } catch (e) {
-    resultEl.textContent = 'Network error — try again';
-    resultEl.style.background = 'var(--danger-bg, #fee2e2)';
-    resultEl.style.color = 'var(--danger, #dc2626)';
-    resultEl.style.display = 'block';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '↑ Save & sync to Typefully ↗';
-  }
 }
 
 // ── X Audit log ───────────────────────────────────────────────────────────────
@@ -9410,13 +9094,6 @@ function populateThrEditor(post) {
 
   loadThrAuditLog(post.id);
 
-  const typefullySection = document.getElementById('thrTypefullySection');
-  if (typefullySection) {
-    typefullySection.style.display = window._config.typefully_enabled ? '' : 'none';
-    document.getElementById('thrTypefullyResult').style.display = 'none';
-    document.getElementById('thrTypefullyScheduleDate').value = '';
-  }
-
   loadSourcePostForSocialPost('threads', post.source_blog_post_id);
 }
 
@@ -9582,7 +9259,7 @@ async function loadThrAuditLog(postId) {
   logEl.innerHTML = entries.map(e => {
     const ts = e.timestamp ? new Date(e.timestamp).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
     const actor = (e.user_email || '').split('@')[0];
-    const actionLabel = { created: 'Created', edited: 'Edited', status_changed: 'Status changed', deleted: 'Deleted', pushed_to_typefully: 'Pushed to Typefully' }[e.action] || e.action;
+    const actionLabel = { created: 'Created', edited: 'Edited', status_changed: 'Status changed', deleted: 'Deleted' }[e.action] || e.action;
     let detail = '';
     if (e.action === 'status_changed' && e.details) {
       try { const d = typeof e.details === 'string' ? JSON.parse(e.details) : e.details; detail = `${d.from} → ${d.to}`; } catch {}
@@ -9592,57 +9269,6 @@ async function loadThrAuditLog(postId) {
       <div style="color:var(--text-dim);margin-top:2px;">${escHtml(actor)} · ${ts}</div>
     </div>`;
   }).join('');
-}
-
-// ── Typefully ─────────────────────────────────────────────────────────────────
-async function thrPushToTypefully(mode) {
-  if (!currentThrPost) return;
-  const resultEl = document.getElementById('thrTypefullyResult');
-  const saveDraftBtn = document.getElementById('thrSaveDraftBtn');
-  const postNowBtn = document.getElementById('thrPostNowBtn');
-  const scheduleBtn = document.getElementById('thrScheduleBtn');
-
-  let scheduleDate = null;
-  if (mode === 'schedule') {
-    const val = document.getElementById('thrTypefullyScheduleDate').value;
-    if (!val) { showToast('Pick a date and time to schedule', 'error'); return; }
-    scheduleDate = new Date(val).toISOString();
-  }
-
-  [saveDraftBtn, postNowBtn, scheduleBtn].forEach(b => b && (b.disabled = true));
-  resultEl.style.display = 'none';
-
-  try {
-    const res = await fetch(`/api/threads-posts/${currentThrPost.id}/push-to-typefully`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schedule_date: scheduleDate, post_now: mode === 'now' }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      resultEl.textContent = data.detail || 'Failed to push to Typefully';
-      resultEl.style.background = 'var(--danger-bg,#fee2e2)';
-      resultEl.style.color = 'var(--danger,#dc2626)';
-      resultEl.style.display = 'block';
-      return;
-    }
-    const msg = mode === 'now' ? 'Posted ✓' : mode === 'schedule' ? 'Scheduled ✓' : 'Saved as draft ✓';
-    const linkLabel = mode === 'draft' ? 'open & publish in Typefully ↗' : 'view in Typefully ↗';
-    resultEl.style.background = 'var(--success-bg,#dcfce7)';
-    resultEl.style.color = 'var(--success,#16a34a)';
-    resultEl.style.display = 'block';
-    resultEl.innerHTML = data.typefully_url
-      ? `${msg} — <a href="${escHtml(data.typefully_url)}" target="_blank" style="color:inherit;">${linkLabel}</a>`
-      : msg;
-    await loadThrPosts();
-  } catch (e) {
-    resultEl.textContent = 'Network error — try again';
-    resultEl.style.background = 'var(--danger-bg,#fee2e2)';
-    resultEl.style.color = 'var(--danger,#dc2626)';
-    resultEl.style.display = 'block';
-  } finally {
-    [saveDraftBtn, postNowBtn, scheduleBtn].forEach(b => b && (b.disabled = false));
-  }
 }
 
 // ── Bulk select ───────────────────────────────────────────────────────────────
@@ -10117,13 +9743,6 @@ function populateLiEditor(post) {
 
   loadLiAuditLog(post.id);
 
-  const typefullySection = document.getElementById('liTypefullySection');
-  if (typefullySection) {
-    typefullySection.style.display = window._config.typefully_enabled ? '' : 'none';
-    document.getElementById('liTypefullyResult').style.display = 'none';
-    document.getElementById('liTypefullyScheduleDate').value = '';
-  }
-
   loadSourcePostForSocialPost('linkedin', post.source_blog_post_id);
 }
 
@@ -10219,7 +9838,7 @@ async function loadLiAuditLog(postId) {
   logEl.innerHTML = entries.map(e => {
     const ts = e.timestamp ? new Date(e.timestamp).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
     const actor = (e.user_email || '').split('@')[0];
-    const actionLabel = { created: 'Created', edited: 'Edited', status_changed: 'Status changed', deleted: 'Deleted', pushed_to_typefully: 'Pushed to Typefully' }[e.action] || e.action;
+    const actionLabel = { created: 'Created', edited: 'Edited', status_changed: 'Status changed', deleted: 'Deleted' }[e.action] || e.action;
     let detail = '';
     if (e.action === 'status_changed' && e.details) {
       try { const d = typeof e.details === 'string' ? JSON.parse(e.details) : e.details; detail = `${d.from} → ${d.to}`; } catch {}
@@ -10231,55 +9850,6 @@ async function loadLiAuditLog(postId) {
   }).join('');
 }
 
-async function liPushToTypefully(mode) {
-  if (!currentLiPost) return;
-  const resultEl = document.getElementById('liTypefullyResult');
-  const saveDraftBtn = document.getElementById('liSaveDraftBtn');
-  const postNowBtn = document.getElementById('liPostNowBtn');
-  const scheduleBtn = document.getElementById('liScheduleBtn');
-
-  let scheduleDate = null;
-  if (mode === 'schedule') {
-    const val = document.getElementById('liTypefullyScheduleDate').value;
-    if (!val) { showToast('Pick a date and time to schedule', 'error'); return; }
-    scheduleDate = new Date(val).toISOString();
-  }
-
-  [saveDraftBtn, postNowBtn, scheduleBtn].forEach(b => b && (b.disabled = true));
-  resultEl.style.display = 'none';
-
-  try {
-    const res = await fetch(`/api/linkedin-posts/${currentLiPost.id}/push-to-typefully`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schedule_date: scheduleDate, post_now: mode === 'now' }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      resultEl.textContent = data.detail || 'Failed to push to Typefully';
-      resultEl.style.background = 'var(--danger-bg,#fee2e2)';
-      resultEl.style.color = 'var(--danger,#dc2626)';
-      resultEl.style.display = 'block';
-      return;
-    }
-    const msg = mode === 'now' ? 'Posted ✓' : mode === 'schedule' ? 'Scheduled ✓' : 'Saved as draft ✓';
-    const linkLabel = mode === 'draft' ? 'open & publish in Typefully ↗' : 'view in Typefully ↗';
-    resultEl.style.background = 'var(--success-bg,#dcfce7)';
-    resultEl.style.color = 'var(--success,#16a34a)';
-    resultEl.style.display = 'block';
-    resultEl.innerHTML = data.typefully_url
-      ? `${msg} — <a href="${escHtml(data.typefully_url)}" target="_blank" style="color:inherit;">${linkLabel}</a>`
-      : msg;
-    await loadLiPosts();
-  } catch (e) {
-    resultEl.textContent = 'Network error — try again';
-    resultEl.style.background = 'var(--danger-bg,#fee2e2)';
-    resultEl.style.color = 'var(--danger,#dc2626)';
-    resultEl.style.display = 'block';
-  } finally {
-    [saveDraftBtn, postNowBtn, scheduleBtn].forEach(b => b && (b.disabled = false));
-  }
-}
 
 function liToggleSelectMode() {
   liSelectMode = !liSelectMode;

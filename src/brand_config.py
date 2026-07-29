@@ -1,14 +1,6 @@
 from dataclasses import dataclass
 
-from config import (
-    TYPEFULLY_SOCIAL_SET_ID,
-    TYPEFULLY_THREADS_SOCIAL_SET_ID,
-    TYPEFULLY_SME_SOCIAL_SET_ID,
-    TYPEFULLY_SME_THREADS_SOCIAL_SET_ID,
-    TYPEFULLY_LINKEDIN_SOCIAL_SET_ID,
-    TYPEFULLY_SME_LINKEDIN_SOCIAL_SET_ID,
-    SME_BLOG_BASE_URL,
-)
+from config import SME_BLOG_BASE_URL
 
 
 @dataclass
@@ -19,9 +11,6 @@ class BrandConfig:
     blog_links_file: str
     blog_base_url: str
     sitemap_url: str | None
-    typefully_social_set_id: str | None
-    typefully_threads_social_set_id: str | None
-    typefully_linkedin_social_set_id: str | None = None
 
 
 HITPAY = BrandConfig(
@@ -31,9 +20,6 @@ HITPAY = BrandConfig(
     blog_links_file="blog_links.yaml",
     blog_base_url="https://hitpayapp.com/blog",
     sitemap_url="https://hitpayapp.com/sitemap_en.xml",
-    typefully_social_set_id=TYPEFULLY_SOCIAL_SET_ID or None,
-    typefully_threads_social_set_id=TYPEFULLY_THREADS_SOCIAL_SET_ID or None,
-    typefully_linkedin_social_set_id=TYPEFULLY_LINKEDIN_SOCIAL_SET_ID or None,
 )
 
 SME_GROWTH_HUB = BrandConfig(
@@ -43,9 +29,6 @@ SME_GROWTH_HUB = BrandConfig(
     blog_links_file="sme_blog_links.yaml",
     blog_base_url=SME_BLOG_BASE_URL,
     sitemap_url=None,
-    typefully_social_set_id=TYPEFULLY_SME_SOCIAL_SET_ID or None,
-    typefully_threads_social_set_id=TYPEFULLY_SME_THREADS_SOCIAL_SET_ID or None,
-    typefully_linkedin_social_set_id=TYPEFULLY_SME_LINKEDIN_SOCIAL_SET_ID or None,
 )
 
 _REGISTRY: dict[str, BrandConfig] = {

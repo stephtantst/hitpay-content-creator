@@ -29,10 +29,6 @@ from config import (
     GOOGLE_CLIENT_SECRET,
     POSTS_DIR,
     SECRET_KEY,
-    TYPEFULLY_API_KEY,
-    TYPEFULLY_SOCIAL_SET_ID,
-    TYPEFULLY_THREADS_SOCIAL_SET_ID,
-    TYPEFULLY_LINKEDIN_SOCIAL_SET_ID,
 )
 from src.database import (
     delete_post,
@@ -995,33 +991,6 @@ def api_get_x_audit_log(post_id: int, _: str = Depends(require_auth)):
     return get_x_audit_log(post_id)
 
 
-class XTypefullyRequest(BaseModel):
-    schedule_date: str | None = None
-    post_now: bool = False
-
-
-def _get_typefully_social_set_id() -> str:
-    """Return configured social set ID, or auto-fetch the first one from the API."""
-    if TYPEFULLY_SOCIAL_SET_ID:
-        return TYPEFULLY_SOCIAL_SET_ID
-    try:
-        resp = httpx.get(
-            "https://api.typefully.com/v2/social-sets",
-            headers={"Authorization": f"Bearer {TYPEFULLY_API_KEY}"},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        sets = data["results"] if isinstance(data, dict) and "results" in data else data
-        if not sets:
-            raise HTTPException(400, "No Typefully social sets found — connect an X account in Typefully")
-        return str(sets[0]["id"])
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code in (401, 403):
-            raise HTTPException(400, "Typefully API key is invalid — check TYPEFULLY_API_KEY in .env")
-        raise HTTPException(500, f"Could not fetch Typefully social sets: {e.response.text[:200]}")
-
-
 def _check_link_url(content: str) -> str | None:
     """Return a warning string if any https://hitpayapp.com/blog/* URL in content is a 404."""
     import re as _re
@@ -1036,94 +1005,6 @@ def _check_link_url(content: str) -> str | None:
     return None
 
 
-def _do_push_x_post(post_id: int, post_now: bool, schedule_date: str | None) -> dict:
-    """Push an X post to Typefully. Returns the Typefully response dict."""
-    post = get_x_post(post_id)
-    if not post:
-        raise HTTPException(404, "X post not found")
-    content = (post.get("content") or "").strip()
-    if not content:
-        raise HTTPException(400, "Post has no content")
-
-    THREAD_SEP = "\n\n---\n\n"
-    tweets = [_cap_tweet(t.strip()) for t in content.split(THREAD_SEP) if t.strip()]
-
-    will_autopublish = post_now or bool(schedule_date)
-    if will_autopublish:
-        # X policy blocks API publishing when any tweet body contains a URL.
-        # Move the URL from the last tweet into a standalone reply so the body is URL-free.
-        tweets = _move_url_to_reply(tweets)
-
-    payload: dict = {
-        "platforms": {
-            "x": {
-                "enabled": True,
-                "posts": [{"text": t} for t in tweets],
-            }
-        }
-    }
-    if schedule_date:
-        payload["publish_at"] = schedule_date
-    elif post_now:
-        from datetime import datetime, timezone, timedelta
-        payload["publish_at"] = (datetime.now(timezone.utc) + timedelta(minutes=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    social_set_id = _get_typefully_social_set_id()
-
-    try:
-        resp = httpx.post(
-            f"https://api.typefully.com/v2/social-sets/{social_set_id}/drafts",
-            headers={"Authorization": f"Bearer {TYPEFULLY_API_KEY}", "Content-Type": "application/json"},
-            json=payload,
-            timeout=15,
-        )
-        resp.raise_for_status()
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code in (401, 403):
-            raise HTTPException(400, "Typefully API key is invalid — check TYPEFULLY_API_KEY")
-        elif e.response.status_code == 429:
-            raise HTTPException(429, "Typefully rate limit — wait a minute and retry")
-        else:
-            raise HTTPException(500, f"Typefully error {e.response.status_code}: {e.response.text[:200]}")
-    except httpx.TimeoutException:
-        raise HTTPException(504, "Typefully request timed out")
-
-    data = resp.json()
-    typefully_url = data.get("share_url") or data.get("private_url") or data.get("url") or ""
-    mode = "now" if post_now else ("scheduled" if schedule_date else "draft")
-
-    if post_now:
-        _change_x_status(post_id, "posted")
-    elif schedule_date:
-        _change_x_status(post_id, "scheduled", scheduled_at=schedule_date)
-    else:
-        # Saved as draft in Typefully — mark scheduled so it shows as "in queue"
-        _change_x_status(post_id, "scheduled")
-
-    return {
-        "typefully_url": typefully_url,
-        "posted": post_now,
-        "link_warning": _check_link_url(content),
-        "scheduled": bool(schedule_date),
-        "mode": mode,
-    }
-
-
-@app.post("/api/x-posts/{post_id}/push-to-typefully")
-def api_x_post_typefully(post_id: int, body: XTypefullyRequest,
-                         user_email: str = Depends(require_auth)):
-    if not TYPEFULLY_API_KEY:
-        raise HTTPException(400, "Typefully not configured — add TYPEFULLY_API_KEY to .env")
-    result = _do_push_x_post(post_id, body.post_now, body.schedule_date)
-    log_x_audit(post_id, user_email, "pushed_to_typefully", {
-        "mode": result["mode"],
-        "schedule_date": body.schedule_date,
-        "typefully_url": result["typefully_url"],
-    })
-    result.pop("mode", None)
-    return result
-
-
 class UpdateAndSyncXRequest(BaseModel):
     content: str
     market: str | None = None
@@ -1133,9 +1014,7 @@ class UpdateAndSyncXRequest(BaseModel):
 @app.post("/api/x-posts/{post_id}/update-and-sync")
 def api_update_and_sync_x_post(post_id: int, body: UpdateAndSyncXRequest,
                                 user_email: str = Depends(require_auth)):
-    """Save edits to DB then re-push to Typefully, preserving the existing schedule."""
-    if not TYPEFULLY_API_KEY:
-        raise HTTPException(400, "Typefully not configured — add TYPEFULLY_API_KEY to .env")
+    """Save edits to DB."""
     post = get_x_post(post_id)
     if not post:
         raise HTTPException(404, "X post not found")
@@ -1149,18 +1028,7 @@ def api_update_and_sync_x_post(post_id: int, body: UpdateAndSyncXRequest,
     update_x_post(post_id, fields)
     log_x_audit(post_id, user_email, "edited", {"fields": list(fields.keys()), "source": "update_and_sync"})
 
-    # Re-push with the existing or updated schedule
-    schedule_date = body.scheduled_at or post.get("scheduled_at")
-    if schedule_date and hasattr(schedule_date, "isoformat"):
-        schedule_date = schedule_date.isoformat()
-    result = _do_push_x_post(post_id, post_now=False, schedule_date=schedule_date)
-    log_x_audit(post_id, user_email, "pushed_to_typefully", {
-        "mode": "resync",
-        "typefully_url": result["typefully_url"],
-    })
-    result.pop("mode", None)
-    result["resync_warning"] = "A new Typefully draft was created with your edits. Delete the old draft in Typefully to avoid duplicates."
-    return result
+    return {"ok": True}
 
 
 class GenerateThoughtLeadershipRequest(BaseModel):
@@ -1308,17 +1176,6 @@ class GenerateThreadsStoryRequest(BaseModel):
     topic_hint: str | None = None
     thread_size: int = 3  # 1, 3, or 5
     brand: str = "hitpay"
-
-
-class ThreadsTypefullyRequest(BaseModel):
-    schedule_date: str | None = None
-    post_now: bool = False
-
-
-def _get_typefully_threads_social_set_id() -> str:
-    if TYPEFULLY_THREADS_SOCIAL_SET_ID:
-        return TYPEFULLY_THREADS_SOCIAL_SET_ID
-    return _get_typefully_social_set_id()
 
 
 @app.get("/api/threads-posts")
@@ -1475,86 +1332,6 @@ def api_generate_threads_from_changelog(
     return {"created": created, "total": len(created), "market": body.market}
 
 
-def _do_push_threads_post(post_id: int, post_now: bool, schedule_date: str | None) -> dict:
-    """Push a Threads post to Typefully. Returns the Typefully response dict."""
-    post = get_threads_post(post_id)
-    if not post:
-        raise HTTPException(404, "Threads post not found")
-    content = (post.get("content") or "").strip()
-    if not content:
-        raise HTTPException(400, "Post has no content")
-
-    THREAD_SEP = "\n\n---\n\n"
-    posts = [p.strip() for p in content.split(THREAD_SEP) if p.strip()]
-
-    payload: dict = {
-        "platforms": {
-            "threads": {
-                "enabled": True,
-                "posts": [{"text": p} for p in posts],
-            }
-        }
-    }
-    if schedule_date:
-        payload["publish_at"] = schedule_date
-    elif post_now:
-        from datetime import datetime, timezone, timedelta
-        payload["publish_at"] = (datetime.now(timezone.utc) + timedelta(minutes=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    social_set_id = _get_typefully_threads_social_set_id()
-
-    try:
-        resp = httpx.post(
-            f"https://api.typefully.com/v2/social-sets/{social_set_id}/drafts",
-            headers={"Authorization": f"Bearer {TYPEFULLY_API_KEY}", "Content-Type": "application/json"},
-            json=payload,
-            timeout=15,
-        )
-        resp.raise_for_status()
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code in (401, 403):
-            raise HTTPException(400, "Typefully API key is invalid — check TYPEFULLY_API_KEY")
-        elif e.response.status_code == 429:
-            raise HTTPException(429, "Typefully rate limit — wait a minute and retry")
-        else:
-            raise HTTPException(500, f"Typefully error {e.response.status_code}: {e.response.text[:200]}")
-    except httpx.TimeoutException:
-        raise HTTPException(504, "Typefully request timed out")
-
-    data = resp.json()
-    typefully_url = data.get("share_url") or data.get("private_url") or data.get("url") or ""
-    mode = "now" if post_now else ("scheduled" if schedule_date else "draft")
-
-    if post_now:
-        _change_thr_status(post_id, "posted")
-    elif schedule_date:
-        _change_thr_status(post_id, "scheduled", scheduled_at=schedule_date)
-    else:
-        _change_thr_status(post_id, "scheduled")
-
-    return {
-        "typefully_url": typefully_url,
-        "posted": post_now,
-        "scheduled": bool(schedule_date),
-        "mode": mode,
-    }
-
-
-@app.post("/api/threads-posts/{post_id}/push-to-typefully")
-def api_threads_post_typefully(post_id: int, body: ThreadsTypefullyRequest,
-                               user_email: str = Depends(require_auth)):
-    if not TYPEFULLY_API_KEY:
-        raise HTTPException(400, "Typefully not configured — add TYPEFULLY_API_KEY to .env")
-    result = _do_push_threads_post(post_id, body.post_now, body.schedule_date)
-    log_threads_audit(post_id, user_email, "pushed_to_typefully", {
-        "mode": result["mode"],
-        "schedule_date": body.schedule_date,
-        "typefully_url": result["typefully_url"],
-    })
-    result.pop("mode", None)
-    return result
-
-
 # ── LinkedIn Posts ────────────────────────────────────────────────────────────
 
 from src.linkedin_database import (
@@ -1599,25 +1376,10 @@ class GenerateLinkedInPostRequest(BaseModel):
     brand: str = "hitpay"
 
 
-class LinkedInTypefullyRequest(BaseModel):
-    schedule_date: str | None = None
-    post_now: bool = False
-
-
 class GenerateChangelogLinkedInRequest(BaseModel):
     market: str | None = None
     limit: int = 10
     brand: str = "hitpay"
-
-
-def _get_typefully_linkedin_social_set_id(brand: str = "hitpay") -> str:
-    from src.brand_config import get_brand_config
-    bc = get_brand_config(brand)
-    if bc.typefully_linkedin_social_set_id:
-        return bc.typefully_linkedin_social_set_id
-    if TYPEFULLY_LINKEDIN_SOCIAL_SET_ID:
-        return TYPEFULLY_LINKEDIN_SOCIAL_SET_ID
-    return _get_typefully_social_set_id()
 
 
 @app.get("/api/linkedin-posts")
@@ -1763,100 +1525,14 @@ def api_generate_linkedin_from_changelog(
     return {"created": [{"id": post_id, "preview": full_content[:100]}], "total": 1, "market": body.market}
 
 
-def _do_push_linkedin_post(post_id: int, post_now: bool, schedule_date: str | None, brand: str = "hitpay") -> dict:
-    """Push a LinkedIn post to Typefully. Returns the Typefully response dict."""
-    post = get_linkedin_post(post_id)
-    if not post:
-        raise HTTPException(404, "LinkedIn post not found")
-    content = (post.get("content") or "").strip()
-    if not content:
-        raise HTTPException(400, "Post has no content")
-
-    payload: dict = {
-        "platforms": {
-            "linkedin": {
-                "enabled": True,
-                "posts": [{"text": content}],
-            }
-        }
-    }
-    if schedule_date:
-        payload["publish_at"] = schedule_date
-    elif post_now:
-        from datetime import datetime, timezone, timedelta
-        payload["publish_at"] = (datetime.now(timezone.utc) + timedelta(minutes=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    social_set_id = _get_typefully_linkedin_social_set_id(post.get("brand") or brand)
-
-    try:
-        resp = httpx.post(
-            f"https://api.typefully.com/v2/social-sets/{social_set_id}/drafts",
-            headers={"Authorization": f"Bearer {TYPEFULLY_API_KEY}", "Content-Type": "application/json"},
-            json=payload,
-            timeout=15,
-        )
-        resp.raise_for_status()
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code in (401, 403):
-            raise HTTPException(400, "Typefully API key is invalid — check TYPEFULLY_API_KEY")
-        elif e.response.status_code == 429:
-            raise HTTPException(429, "Typefully rate limit — wait a minute and retry")
-        else:
-            raise HTTPException(500, f"Typefully error {e.response.status_code}: {e.response.text[:200]}")
-    except httpx.TimeoutException:
-        raise HTTPException(504, "Typefully request timed out")
-
-    data = resp.json()
-    typefully_url = data.get("share_url") or data.get("private_url") or data.get("url") or ""
-    mode = "now" if post_now else ("scheduled" if schedule_date else "draft")
-
-    if post_now:
-        _change_li_status(post_id, "posted")
-    elif schedule_date:
-        _change_li_status(post_id, "scheduled", scheduled_at=schedule_date)
-    else:
-        _change_li_status(post_id, "scheduled")
-
-    return {
-        "typefully_url": typefully_url,
-        "posted": post_now,
-        "scheduled": bool(schedule_date),
-        "mode": mode,
-    }
-
-
-@app.post("/api/linkedin-posts/{post_id}/push-to-typefully")
-def api_linkedin_post_typefully(post_id: int, body: LinkedInTypefullyRequest,
-                                user_email: str = Depends(require_auth)):
-    if not TYPEFULLY_API_KEY:
-        raise HTTPException(400, "Typefully not configured — add TYPEFULLY_API_KEY to .env")
-    result = _do_push_linkedin_post(post_id, body.post_now, body.schedule_date)
-    log_linkedin_audit(post_id, user_email, "pushed_to_typefully", {
-        "mode": result["mode"],
-        "schedule_date": body.schedule_date,
-        "typefully_url": result["typefully_url"],
-    })
-    result.pop("mode", None)
-    return result
-
-
 # ── Repurpose for Social ─────────────────────────────────────────────────────
 
-from src.repurposer import repurpose_for_platform, push_to_typefully, _cap_tweet, _cap_tweet_post_url, _move_url_to_reply, repurpose_post_as_thread, repurpose_edm
+from src.repurposer import repurpose_for_platform, _cap_tweet, _cap_tweet_post_url, _move_url_to_reply, repurpose_post_as_thread, repurpose_edm
 
 
 class RepurposeRequest(BaseModel):
     platform: str = "twitter"
     brand: str | None = None  # if None, inherits from the post's brand field
-
-
-class TypefullyRequest(BaseModel):
-    format_key: str
-    blog_url: str
-    schedule_date: str | None = None
-    post_now: bool = False
-    tweets: list[str] | None = None
-    link_reply: str | None = None
 
 
 class RepurposeToXRequest(BaseModel):
@@ -1879,7 +1555,7 @@ class RepurposeEDMRequest(BaseModel):
 
 @app.get("/api/config")
 def api_config(_: str = Depends(require_auth)):
-    return {"typefully_enabled": bool(TYPEFULLY_API_KEY)}
+    return {}
 
 
 @app.post("/api/posts/{post_id}/repurpose")
@@ -2080,72 +1756,6 @@ async def api_save_repurposed(post_id: int, request: Request,
     data = await request.json()
     update_repurposed_content(post_id, "twitter", data)
     return {"ok": True}
-
-
-@app.post("/api/posts/{post_id}/typefully")
-def api_push_typefully(post_id: int, body: TypefullyRequest,
-                       user_email: str = Depends(require_auth)):
-    if not TYPEFULLY_API_KEY:
-        raise HTTPException(400, "Typefully API key not configured")
-    post = get_post(post_id)
-    if not post:
-        raise HTTPException(404, "Post not found")
-    repurposed = get_repurposed_content(post_id)
-    twitter_data = (repurposed or {}).get("twitter", {})
-    if body.post_now:
-        from datetime import datetime, timezone, timedelta
-        schedule_date = (datetime.now(timezone.utc) + timedelta(minutes=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    else:
-        schedule_date = body.schedule_date or None
-    try:
-        result = push_to_typefully(
-            twitter_data=twitter_data,
-            format_key=body.format_key,
-            blog_url=body.blog_url,
-            schedule_date=schedule_date,
-            api_key=TYPEFULLY_API_KEY,
-            tweets_override=body.tweets,
-            link_reply_override=body.link_reply,
-        )
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    check_content = body.blog_url or ""
-    if body.link_reply:
-        check_content += " " + body.link_reply
-    result["link_warning"] = _check_link_url(check_content)
-    log_audit(post_id, user_email, "pushed_to_typefully", {"format": body.format_key})
-
-    # Mirror the post into x_posts so it shows in the X list and calendar.
-    # Build the content string from whatever was actually sent to Typefully.
-    tweets_sent = body.tweets or []
-    if body.link_reply:
-        tweets_sent = list(tweets_sent) + [body.link_reply]
-    if tweets_sent:
-        THREAD_SEP = "\n\n---\n\n"
-        x_content = THREAD_SEP.join(t.replace("[URL]", body.blog_url or "") for t in tweets_sent)
-        xid = create_x_post(
-            content=x_content,
-            market=post.get("country") or None,
-            scheduled_at=schedule_date or None,
-            editor_email=user_email,
-            source_blog_post_id=post_id,
-            brand=post.get("brand", "hitpay"),
-        )
-        typefully_url = result.get("typefully_url") or result.get("share_url") or ""
-        x_status = "posted" if body.post_now else ("scheduled" if schedule_date else "draft")
-        _change_x_status(
-            xid,
-            x_status,
-            scheduled_at=schedule_date if not body.post_now else None,
-            post_url=typefully_url,
-        )
-        log_x_audit(xid, user_email, "created", {
-            "source": f"repurpose:{body.format_key}",
-            "typefully_url": typefully_url,
-        })
-        result["x_post_id"] = xid
-
-    return result
 
 
 @app.post("/api/posts/{post_id}/repurpose-to-x-drafts")
@@ -2676,16 +2286,13 @@ def api_generate_launch_linkedin(body: LaunchStepRequest, user_email: str = Depe
 
 @app.post("/api/automation/weekly-post")
 def api_automation_weekly_post(request: Request, dry_run: bool = True):
-    """Phase 1 — called by GitHub Actions at 10am SGT (daily) to generate and save draft posts.
+    """Generate and save draft posts. Called by GitHub Actions at 10am SGT (daily).
 
-    Always dry_run=True from the schedule trigger. Pass ?dry_run=false only for legacy
-    single-step runs (generate + post immediately, no review window).
+    Always generates drafts (dry_run=True is the default).
     """
     key = request.headers.get("X-Automation-Key", "")
     if not key or not AUTOMATION_SECRET or key != AUTOMATION_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    if not dry_run and not TYPEFULLY_API_KEY:
-        raise HTTPException(400, "Typefully not configured — add TYPEFULLY_API_KEY to .env")
 
     import threading
     from src.thought_leadership import generate_random_x_post
@@ -2711,12 +2318,7 @@ def api_automation_weekly_post(request: Request, dry_run: bool = True):
             "source": "weekly_automation", "market": x_data.get("market") or "",
             "content_type": x_data.get("content_type"), "dry_run": dry_run,
         })
-        if not dry_run:
-            res = _do_push_x_post(x_id, post_now=True, schedule_date=None)
-            log_x_audit(x_id, "automation@hit-pay.com", "pushed_to_typefully", {"mode": "now", "typefully_url": res["typefully_url"]})
-        else:
-            res = {"typefully_url": ""}
-        x_result_box.append((x_id, res))
+        x_result_box.append(x_id)
 
     def _gen_t():
         t_market = random.choice(_MARKETS)
@@ -2733,12 +2335,7 @@ def api_automation_weekly_post(request: Request, dry_run: bool = True):
         log_threads_audit(t_id, "automation@hit-pay.com", "created", {
             "source": "weekly_automation", "market": t_data.get("market") or "", "dry_run": dry_run,
         })
-        if not dry_run:
-            res = _do_push_threads_post(t_id, post_now=True, schedule_date=None)
-            log_threads_audit(t_id, "automation@hit-pay.com", "pushed_to_typefully", {"mode": "now", "typefully_url": res["typefully_url"]})
-        else:
-            res = {"typefully_url": ""}
-        t_result_box.append((t_id, res))
+        t_result_box.append(t_id)
 
     # Run both Claude generations concurrently — cuts wall-clock time roughly in half
     tx = threading.Thread(target=_gen_x)
@@ -2746,15 +2343,13 @@ def api_automation_weekly_post(request: Request, dry_run: bool = True):
     tx.start(); tt.start()
     tx.join(); tt.join()
 
-    x_id, x_result = x_result_box[0]
-    t_id, t_result = t_result_box[0]
+    x_id = x_result_box[0]
+    t_id = t_result_box[0]
 
     return {
         "dry_run": dry_run,
         "x_post_id": x_id,
-        "x_typefully_url": x_result["typefully_url"],
         "threads_post_id": t_id,
-        "threads_typefully_url": t_result["typefully_url"],
     }
 
 
@@ -2844,80 +2439,6 @@ def api_generate_weekly_drafts(request: Request):
         "threads": {"generated": thr_results, "total": len(thr_results)},
         "errors": errors,
     }
-
-
-@app.post("/api/automation/push-pending")
-def api_automation_push_pending(request: Request):
-    """Phase 2 — called by GitHub Actions daily at 01:00 UTC (09:00 SGT).
-
-    Pushes ALL scheduled posts (status=scheduled, typefully_url IS NULL) whose
-    scheduled_at falls within the next 26 hours to Typefully using their exact
-    scheduled_at time. Covers both automation-generated and manually-created posts.
-    """
-    key = request.headers.get("X-Automation-Key", "")
-    if not key or not AUTOMATION_SECRET or key != AUTOMATION_SECRET:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    if not TYPEFULLY_API_KEY:
-        raise HTTPException(400, "Typefully not configured — add TYPEFULLY_API_KEY to .env")
-
-    from datetime import datetime, timezone, timedelta
-
-    now_utc = datetime.now(timezone.utc)
-    horizon = now_utc + timedelta(hours=26)  # look ahead ~1 day
-
-    def _normalize_dt(dt):
-        if dt is None:
-            return None
-        if hasattr(dt, "tzinfo") and dt.tzinfo is None:
-            return dt.replace(tzinfo=timezone.utc)
-        return dt
-
-    def _should_push(p: dict) -> str | None:
-        """Return ISO schedule string if post should be pushed, else None."""
-        if p.get("post_url"):
-            return None  # already pushed to Typefully
-        if p.get("status") != "scheduled":
-            return None
-        scheduled_at = _normalize_dt(p.get("scheduled_at"))
-        if scheduled_at is None:
-            return None
-        # Must be at least 5 minutes in the future
-        earliest = now_utc + timedelta(minutes=5)
-        if scheduled_at < earliest:
-            return None
-        return scheduled_at.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    results = {"x_posts": [], "threads_posts": []}
-
-    # ── X posts ──────────────────────────────────────────────────────────────
-    for p in list_x_posts(status="scheduled"):
-        schedule_str = _should_push(p)
-        if not schedule_str:
-            continue
-        try:
-            result = _do_push_x_post(p["id"], post_now=False, schedule_date=schedule_str)
-            log_x_audit(p["id"], "automation@hit-pay.com", "pushed_to_typefully", {
-                "mode": "scheduled", "typefully_url": result["typefully_url"], "schedule_date": schedule_str,
-            })
-            results["x_posts"].append({"id": p["id"], "typefully_url": result["typefully_url"], "schedule_date": schedule_str})
-        except Exception as exc:
-            results["x_posts"].append({"id": p["id"], "error": str(exc)})
-
-    # ── Threads posts ─────────────────────────────────────────────────────────
-    for p in list_threads_posts(status="scheduled"):
-        schedule_str = _should_push(p)
-        if not schedule_str:
-            continue
-        try:
-            result = _do_push_threads_post(p["id"], post_now=False, schedule_date=schedule_str)
-            log_threads_audit(p["id"], "automation@hit-pay.com", "pushed_to_typefully", {
-                "mode": "scheduled", "typefully_url": result["typefully_url"], "schedule_date": schedule_str,
-            })
-            results["threads_posts"].append({"id": p["id"], "typefully_url": result["typefully_url"], "schedule_date": schedule_str})
-        except Exception as exc:
-            results["threads_posts"].append({"id": p["id"], "error": str(exc)})
-
-    return results
 
 
 # ── YouTube description generator ───────────────────────────────────────────

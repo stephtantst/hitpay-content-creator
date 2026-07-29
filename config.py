@@ -29,16 +29,9 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-please-set-in-env")
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000").strip().rstrip("/")
 ALLOWED_DOMAIN = "hit-pay.com"
-TYPEFULLY_API_KEY = os.getenv("TYPEFULLY_API_KEY", "")
-TYPEFULLY_SOCIAL_SET_ID = os.getenv("TYPEFULLY_SOCIAL_SET_ID", "")
-TYPEFULLY_THREADS_SOCIAL_SET_ID = os.getenv("TYPEFULLY_THREADS_SOCIAL_SET_ID", "")
 
 # SME Growth Hub brand config
 SME_BLOG_BASE_URL = os.getenv("SME_BLOG_BASE_URL", "https://smegrowthhub.com/blog")
-TYPEFULLY_SME_SOCIAL_SET_ID = os.getenv("TYPEFULLY_SME_SOCIAL_SET_ID", "")
-TYPEFULLY_SME_THREADS_SOCIAL_SET_ID = os.getenv("TYPEFULLY_SME_THREADS_SOCIAL_SET_ID", "")
-TYPEFULLY_LINKEDIN_SOCIAL_SET_ID = os.getenv("TYPEFULLY_LINKEDIN_SOCIAL_SET_ID", "")
-TYPEFULLY_SME_LINKEDIN_SOCIAL_SET_ID = os.getenv("TYPEFULLY_SME_LINKEDIN_SOCIAL_SET_ID", "")
 
 # Secret key for the automation endpoint (GitHub Actions weekly-post trigger)
 AUTOMATION_SECRET = os.getenv("AUTOMATION_SECRET", "")

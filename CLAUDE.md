@@ -46,7 +46,6 @@ python api.py                            # FastAPI server (Google OAuth + REST A
 | `HITPAY_MCP_URL` | HitPay knowledge MCP server |
 | `DATABASE_URL` | Supabase PostgreSQL (pg8000) |
 | `GOOGLE_CLIENT_ID/SECRET` | OAuth for web UI |
-| `TYPEFULLY_API_KEY` | Social media publishing |
 
 `POSTS_DIR` auto-detects: Railway (`/data/posts`) → Vercel (`/tmp/posts`) → local (`posts/`)
 
