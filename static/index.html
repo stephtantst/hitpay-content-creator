@@ -71,6 +71,7 @@
       font-family: Georgia, serif;
     }
     .info-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .info-btn { text-decoration: none; }
     .info-overlay {
       display: none;
       position: fixed; inset: 0;
@@ -78,38 +79,6 @@
       z-index: 900;
     }
     .info-overlay.open { display: block; }
-    .info-panel {
-      position: fixed;
-      top: 0; right: -480px;
-      width: 460px;
-      max-width: 96vw;
-      height: 100vh;
-      background: var(--surface);
-      border-left: 1px solid var(--border);
-      z-index: 901;
-      display: flex; flex-direction: column;
-      transition: right 0.25s cubic-bezier(0.4,0,0.2,1);
-      overflow: hidden;
-    }
-    .info-panel.open { right: 0; }
-    .info-panel-header {
-      display: flex; align-items: center;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-      gap: 10px;
-    }
-    .info-panel-title { font-size: 14px; font-weight: 700; flex: 1; }
-    .info-panel-close {
-      background: none; border: none; color: var(--text-muted);
-      font-size: 18px; cursor: pointer; line-height: 1; padding: 2px 4px;
-    }
-    .info-panel-close:hover { color: var(--text); }
-    .info-panel-body {
-      flex: 1; overflow-y: auto;
-      padding: 20px;
-      font-size: 13px; line-height: 1.65;
-    }
 
     /* ── Analytics button & panel ────────────────────── */
     .analytics-btn {
@@ -191,40 +160,6 @@
       background: var(--surface2); border-radius: 10px; padding: 16px;
       display: flex; gap: 20px; align-items: center;
     }
-    .info-section { margin-bottom: 24px; }
-    .info-section-title {
-      font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
-      text-transform: uppercase; color: var(--accent);
-      margin-bottom: 10px;
-    }
-    .info-section p { color: var(--text-dim); margin: 0 0 8px; }
-    .info-section ul { margin: 0 0 8px; padding-left: 18px; color: var(--text-dim); }
-    .info-section li { margin-bottom: 5px; }
-    .info-tag {
-      display: inline-block;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 1px 7px;
-      font-size: 11px;
-      font-family: 'Menlo', 'Monaco', monospace;
-      color: var(--text);
-      margin: 2px 2px 2px 0;
-    }
-    .info-step {
-      display: flex; gap: 10px; margin-bottom: 10px;
-    }
-    .info-step-num {
-      width: 20px; height: 20px; border-radius: 50%;
-      background: var(--surface2); border: 1px solid var(--border);
-      font-size: 11px; font-weight: 700; color: var(--text-muted);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; margin-top: 1px;
-    }
-    .info-step-body { color: var(--text-dim); }
-    .info-step-body strong { color: var(--text); }
-    .info-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
-
     /* ── Layout ─────────────────────────────────────── */
     .layout {
       display: flex;
@@ -2220,7 +2155,7 @@
       <rect x="1" y="9" width="3" height="6" rx="1"/><rect x="6.5" y="5" width="3" height="10" rx="1"/><rect x="12" y="1" width="3" height="14" rx="1"/>
     </svg>
   </button>
-  <button class="info-btn" onclick="openInfoPanel()" title="How this tool works">i</button>
+  <a class="info-btn" href="/static/how-it-works.html" target="_blank" rel="noopener" title="How this tool works">i</a>
   <div class="feedback-popover-wrap" id="feedbackWrap">
     <button class="feedback-btn" onclick="toggleFeedbackPopover(event)" title="Send feedback">✦</button>
     <div class="feedback-popover" id="feedbackPopover">
@@ -2255,202 +2190,6 @@
   </div>
   <div id="userInfo" style="display:flex;align-items:center;gap:8px;margin-left:12px;"></div>
 </header>
-
-<!-- Info overlay + panel -->
-<div class="info-overlay" id="infoOverlay" onclick="closeInfoPanel()"></div>
-<div class="info-panel" id="infoPanel">
-  <div class="info-panel-header">
-    <span class="info-panel-title">How this tool works</span>
-    <button class="info-panel-close" onclick="closeInfoPanel()">✕</button>
-  </div>
-  <div class="info-panel-body">
-
-    <div class="info-section">
-      <div class="info-section-title">What it does</div>
-      <p>HitPay Content Creator is an internal content tool for the marketing team. It uses Claude AI (<span class="info-tag">claude-sonnet-4-6</span>) to produce SEO- and AEO-optimised, market-accurate blog posts for Southeast Asia, repurpose them into social content, and manage the full editorial workflow from draft to publication.</p>
-      <p>Posts are written for three markets: <span class="info-tag">🇸🇬 SG</span> <span class="info-tag">🇲🇾 MY</span> <span class="info-tag">🇵🇭 PH</span> — or all three at once if no market is selected. The brand switcher in the header targets either <strong>HitPay</strong> or <strong>SME Growth Hub</strong>, each with its own knowledge docs, internal link index, blog domain, and social scheduling. Finished posts export as CSV for Framer CMS, and edited CSVs can be re-imported to sync fields back into a post.</p>
-    </div>
-
-    <hr class="info-divider" />
-
-    <div class="info-section">
-      <div class="info-section-title">Three creation modes</div>
-      <div class="info-step">
-        <div class="info-step-num">✦</div>
-        <div class="info-step-body"><strong>Generate New Post</strong> — enter a keyword or topic. The AI researches, structures, and writes a full post from scratch with all optimisations applied. Tagged <span class="info-tag">New</span> in the post list.</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">↺</div>
-        <div class="info-step-body"><strong>Rewrite Existing Post</strong> — paste any blog post URL. The AI scrapes the existing content, then rewrites it with improved structure, SEO, AEO optimisation, and updated HitPay positioning. The source URL is stored and shown in the editor sidebar. Tagged <span class="info-tag">Rewrite</span>.</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">🚀</div>
-        <div class="info-step-body"><strong>From Product Launch</strong> — paste a raw PRD or launch EDM. The AI treats it as the primary source of truth, strips internal-only notes ("Note for the team", "Limitations at Launch"), and generates a full blog post plus matching X, Threads, and LinkedIn drafts in one pass. Tagged <span class="info-tag">🚀 Launch</span>. Each piece (blog, social, LinkedIn) can also be generated as a separate step, since long-running single requests can drop on Vercel's serverless runtime.</div>
-      </div>
-    </div>
-
-    <hr class="info-divider" />
-
-    <div class="info-section">
-      <div class="info-section-title">Data sources used during generation</div>
-      <div class="info-step">
-        <div class="info-step-num">1</div>
-        <div class="info-step-body"><strong>HitPay MCP server</strong> — queries the internal knowledge base across <span class="info-tag">general</span> <span class="info-tag">product</span> <span class="info-tag">guide</span> categories (up to 11 results). Grounds the AI in accurate HitPay features, flows, and merchant use cases.</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">2</div>
-        <div class="info-step-body"><strong>Product documentation</strong> — <span class="info-tag">hitpay_docs.md</span> (or <span class="info-tag">sme_growth_hub_docs.md</span> for the SME Growth Hub brand) is split into sections and scored by keyword relevance. The top sections (up to 30,000 chars) are injected for accurate feature names, flows, and pricing.</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">3</div>
-        <div class="info-step-body"><strong>Competitor research database</strong> — <span class="info-tag">competitors/*.json</span> profiles payment competitors by features, markets, and weaknesses. The top 5 relevant profiles are matched by market signal and keyword overlap for positioning context.</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">4</div>
-        <div class="info-step-body"><strong>Internal blog link index</strong> — <span class="info-tag">blog_links.yaml</span> (brand-specific, filtered by market) lists all published posts by topic. The AI picks exactly 3 genuinely relevant URLs and weaves them as natural in-content hyperlinks — never as a list.</div>
-      </div>
-    </div>
-
-    <hr class="info-divider" />
-
-    <div class="info-section">
-      <div class="info-section-title">What the AI is instructed to do</div>
-      <p>Every post is generated with a detailed system prompt. Key rules:</p>
-      <ul>
-        <li><strong>Lead with the reader's problem</strong> — not HitPay's features. Product gets mentioned in 1–2 sections at most.</li>
-        <li><strong>900–1,200 words</strong> of body content (excluding the FAQ), 3–5 H2 sections, sparingly-used H3s. No H1 (CMS adds it).</li>
-        <li><strong>No marketing language</strong> — "seamlessly", "unlock", "revolutionise", "game-changer/game-changing", "cutting-edge", "empower", "leverage" are explicitly banned in favour of specific, verifiable claims.</li>
-        <li><strong>Market-accurate payment methods</strong> — per-market lists of valid methods, plus a fact-check list of cross-market misattributions to avoid (e.g. PayNow is SG-only).</li>
-        <li><strong>Local specificity</strong> — district and city names required per market (Tanjong Pagar, Bangsar, BGC).</li>
-        <li><strong>No fabricated stats or testimonials</strong> — all claims must come from the knowledge base.</li>
-        <li><strong>Exactly 3 internal backlinks</strong> woven naturally using descriptive anchor text — 3 well-placed relevant links outperform 5 forced ones for GEO citability.</li>
-        <li><strong>Payout messaging</strong> — domestic transactions settle "next business day" in SG, MY &amp; PH; cross-border payments settle T+2. Always distinguish the two when relevant.</li>
-        <li><strong>Competitor comparisons</strong> — factual, non-disparaging. Every competitor gets a "Best for:" line that is true but narrow enough that most SMB readers self-disqualify from it, while HitPay's own "Best for" stays broad and inclusive. No fake data.</li>
-      </ul>
-    </div>
-
-    <hr class="info-divider" />
-
-    <div class="info-section">
-      <div class="info-section-title">AEO — AI Answer Engine Optimisation</div>
-      <p>Every post is structured to rank in AI-generated answers (Google AI Overviews, Perplexity, ChatGPT, Claude). Rules applied automatically:</p>
-      <ul>
-        <li><strong>Quick Answer block (required, always first)</strong> — a bold-prefixed 2–3 sentence block before any intro prose that names HitPay and the relevant market(s), self-contained enough for an AI engine to quote on its own.</li>
-        <li><strong>H2/H3 headings as questions</strong> — "What is…", "How does…", "Which… is best for…" — the format AI engines use to pull FAQ-style answers.</li>
-        <li><strong>Mandatory FAQ section</strong> — at least 5 Q&amp;A pairs at the end, each a self-contained 2–4 sentence answer that opens with a declarative statement rather than "Yes, you can…".</li>
-        <li><strong>Numbered and bulleted lists</strong> — for any step-by-step processes or comparisons, improving extractability.</li>
-        <li><strong>Comparison tables</strong> — when comparing HitPay to alternatives, uses Markdown tables AI engines can parse.</li>
-        <li><strong>Cited data points</strong> — real numbers (fees, limits, timelines) stated plainly so they can be quoted.</li>
-        <li><strong>[SCHEMA] block</strong> — each post includes a JSON-LD schema block (FAQPage always; HowTo or Product added when relevant) for structured data markup.</li>
-      </ul>
-    </div>
-
-    <hr class="info-divider" />
-
-    <div class="info-section">
-      <div class="info-section-title">Generation pipeline (in order)</div>
-      <div class="info-step">
-        <div class="info-step-num">1</div>
-        <div class="info-step-body">Query HitPay MCP knowledge base (general + product + guide)</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">2</div>
-        <div class="info-step-body">Score and inject relevant doc sections from <span class="info-tag">hitpay_docs.md</span></div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">3</div>
-        <div class="info-step-body">Match competitor profiles by keyword + market from <span class="info-tag">competitors/*.json</span></div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">4</div>
-        <div class="info-step-body">Build internal backlink reference from <span class="info-tag">blog_links.yaml</span> and select 3 external links using the GEO authority strategy (see below)</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">5</div>
-        <div class="info-step-body"><em>Rewrite only:</em> scrape the source URL, extract title and body text. <em>Product Launch only:</em> pass the pasted PRD/EDM text in as primary source material instead.</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">6</div>
-        <div class="info-step-body">Send all context to <span class="info-tag">claude-sonnet-4-6</span> with the full system prompt (SEO + AEO + competitor rules), streaming the response with exponential backoff retry if the API is overloaded</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">7</div>
-        <div class="info-step-body">Parse JSON response → save to Supabase + open in editor. <em>Product Launch only:</em> also kicks off matching X, Threads, and LinkedIn drafts in parallel.</div>
-      </div>
-    </div>
-
-    <hr class="info-divider" />
-
-    <div class="info-section">
-      <div class="info-section-title">GEO link strategy — why articles are linked the way they are</div>
-      <p>GEO (Generative Engine Optimisation) is about getting HitPay content cited by AI answer engines — Perplexity, ChatGPT, Google AI Overviews, Claude. AI engines evaluate outbound links as a trust signal: linking to authoritative, diverse sources makes content more citable. Linking to the same partner blog every article signals shallow sourcing and reduces citability.</p>
-
-      <p><strong>Internal backlinks: 3 (not 5)</strong></p>
-      <p>Three highly relevant internal links are better than five padded ones. AI engines evaluate anchor text relevance — a forced link with weak context actively lowers the article's authority signal. The AI is instructed to only link where it is genuinely relevant, never to hit a number.</p>
-
-      <p><strong>External links: always 3, fixed slot roles</strong></p>
-      <div class="info-step">
-        <div class="info-step-num">1</div>
-        <div class="info-step-body"><strong>Regulator (always)</strong> — MAS for SG, Bank Negara Malaysia for MY, BSP for PH. Government and central bank URLs are the strongest authority signal available. This slot is never skipped.</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">2</div>
-        <div class="info-step-body"><strong>Official source</strong> — the most keyword-relevant payment method page (e.g. PayNow, DuitNow, GCash official pages) or, for integration articles, the relevant platform's documentation. First-party official pages, not blog posts.</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">3</div>
-        <div class="info-step-body"><strong>Research / data source</strong> — rotates deterministically by keyword across: Singapore Department of Statistics, PayNet Malaysia, Philippine Statistics Authority, Statista market reports, World Bank financial inclusion data, Google-Temasek e-Conomy SEA. This ensures no two articles cite the same research source, which AI engines read as breadth of evidence.</div>
-      </div>
-
-      <p style="margin-top:12px;"><strong>Comparison articles</strong> — slots 2 and 3 are filled with competitor blog articles (one per competitor, from the scraped article database), so competitor links appear with specific context rather than just a homepage. All competitor links use <span class="info-tag">rel="nofollow"</span> and must only appear in sentences directly about that specific competitor.</p>
-
-      <p><strong>Competitor links appear no earlier than 30% into the article.</strong> Placing a competitor link in the intro or first section causes readers to click away before they've engaged with the HitPay article. The AI is instructed to place all competitor links in the second half of the body — inside comparison or context sections — never in the opening.</p>
-
-      <p><strong>Why not Shopify and WooCommerce blog posts?</strong> Partner blog articles are weak GEO signals — AI engines interpret repeated links to the same partner blog as affiliate bias, not genuine research. Shopify and WooCommerce only appear as external links when the article is specifically about Shopify or WooCommerce integration (slot 2, official docs URL only — not a blog post).</p>
-    </div>
-
-    <hr class="info-divider" />
-
-    <div class="info-section">
-      <div class="info-section-title">Repurposing into social content</div>
-      <p>Any published post (or a raw EDM newsletter) can be repurposed into platform-native social drafts, each with its own dedicated editor and scheduling queue:</p>
-      <div class="info-step">
-        <div class="info-step-num">𝕏</div>
-        <div class="info-step-body"><strong>X (Twitter)</strong> — generates three angle "choices" (quick win, thread, contextual take) with multiple hook variants each. Since X blocks scheduled auto-publish of tweets containing a raw link, the article URL is stripped from the body and posted as a separate link-reply tweet.</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">⊕</div>
-        <div class="info-step-body"><strong>Threads</strong> — splits longer source material (especially EDM repurposing) into a real 2–4 post connected thread rather than one oversized post, with each segment hard-capped to Threads' 500-character limit.</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">in</div>
-        <div class="info-step-body"><strong>LinkedIn</strong> — uses one of two voices: a thought-leadership prompt for regular posts, or a distinct HitPay <strong>announcement voice</strong> (hook → bridge → mechanics → friction-removal → recap → CTA) for changelog and product-launch posts.</div>
-      </div>
-      <div class="info-step">
-        <div class="info-step-num">✉</div>
-        <div class="info-step-body"><strong>From EDM</strong> — paste a newsletter and generate X + Threads drafts from it directly, without needing a blog post first.</div>
-      </div>
-      <p><strong>Repurpose All</strong> generates X, Threads, and LinkedIn drafts from one post in a single action and schedules them all to the same next-weekday 9am SGT slot. Draft platforms already used for a post show as icons in the post list's "Repurposed For" column.</p>
-      <p><strong>Quality guardrails</strong> — every generated post is checked for a proper closing sentence (no more dangling "the gap closed itself" with the full stop stripped off after a URL is removed), and merchant-story prompts (Threads stories, the X Wednesday merchant story slot) always inject a fresh, randomised business/location/name seed with an explicit instruction not to default to recurring examples — fixing an earlier pattern where stories kept reconverging on the same handful of characters (e.g. a guesthouse owner in El Nido, a textile shop in Chinatown, a merchant named "Maribel").</p>
-    </div>
-
-    <hr class="info-divider" />
-
-    <div class="info-section">
-      <div class="info-section-title">Editorial workflow</div>
-      <ul>
-        <li><span class="info-tag">✨ Generated</span> — freshly generated, ready for review.</li>
-        <li><span class="info-tag">✏️ Editing</span> — in progress, being edited before approval.</li>
-        <li><span class="info-tag">🔵 Ready to Publish</span> — reviewed and approved for publishing.</li>
-        <li><span class="info-tag">✅ Published</span> — live on the blog.</li>
-      </ul>
-      <p>The <strong>Lifecycle</strong> section in each post's sidebar records when it moved through each stage, and shows elapsed time between steps. The <strong>Analytics</strong> panel (header icon) charts posts generated and time spent per status over day/week/month periods, so the team can track content pipeline speed.</p>
-      <p>Use <strong>AI Edit</strong> to send a selected passage (or the full post) back to Claude with a specific instruction, without regenerating the whole article.</p>
-      <p><strong>Export / Import CSV</strong> — export one or many posts to a Framer-CMS-format CSV. After editing fields externally, re-upload that CSV on a single post to sync the edited fields (title, slug, meta fields, categories, tags, body) straight back into it.</p>
-    </div>
-
-  </div>
-</div>
 
 <!-- Analytics overlay + panel -->
 <div class="info-overlay" id="analyticsOverlay" onclick="closeAnalyticsPanel()"></div>
@@ -5535,16 +5274,6 @@ async function loadLoginsTab() {
 
 function closeFeedbackList() {
   document.getElementById('feedbackListModal').classList.remove('open');
-}
-
-// ── Info panel ────────────────────────────────────────────────────────────────
-function openInfoPanel() {
-  document.getElementById('infoPanel').classList.add('open');
-  document.getElementById('infoOverlay').classList.add('open');
-}
-function closeInfoPanel() {
-  document.getElementById('infoPanel').classList.remove('open');
-  document.getElementById('infoOverlay').classList.remove('open');
 }
 
 // ── Bulk Generate ─────────────────────────────────────────────────────────────
