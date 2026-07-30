@@ -82,7 +82,7 @@ def _shortlist_candidates(video_info: str, market: str | None, brand: str, limit
     return scored[:limit]
 
 
-VIDEO_TYPES = ("short", "video", "merchant_case_study")
+VIDEO_TYPES = ("short", "video")
 
 _TITLE_STYLE_GUIDANCE = {
     "short": (
@@ -123,13 +123,14 @@ def _build_prompt(video_info: str, market: str | None, candidates: list[dict], v
         ),
         "description": (
             "💳 Manual invoicing. Chasing payments. No real-time visibility.\n\n"
-            "In this video, we break down how HitPay helps Southeast Asian merchants collect payments faster "
-            "with PayNow, GrabPay, and cards — all from one dashboard.\n\n"
-            "What you'll learn:\n"
+            "HitPay is a MAS-licensed payment gateway that lets Southeast Asian merchants accept PayNow, "
+            "GrabPay, and cards with no monthly fees.\n\n"
+            "HitPay helps merchants collect payments faster - all from one dashboard.\n\n"
+            "Check out:\n"
             "✅ How to set up a payment link in under 2 minutes\n"
             "💰 How to accept PayNow, GrabPay, and cards with no monthly fees\n"
             "📊 How to track every transaction from one dashboard\n\n"
-            "HitPay is a MAS-licensed payment gateway serving 20,000+ businesses across Southeast Asia.\n\n"
+            "This is what payments should look like for a growing business.\n\n"
             "👉 Learn more: [URL]\n\n"
             "#HitPay #PaymentGateway #Singapore #SME #PayNow"
         ),
@@ -153,15 +154,17 @@ VERIFIED HITPAY FACTS FOR THIS MARKET (safe to cite):
 
 DESCRIPTION STRUCTURE (adapt to what the video info actually supports — do not force sections that don't fit):
 1. A short 1–2 line hook naming the problem/pain point, emoji-led (1 emoji is enough).
-2. A short paragraph giving context: what the video covers / who it's for.
-3. If — and only if — the video info includes a direct quote from a named person, include it as: "Quote" – Name, Title. Otherwise, skip the quote entirely. NEVER invent a quote or a speaker.
-4. A short bulleted list (emoji-led: ✅ 💰 📊 ⏱️ 🔁 etc.) of the concrete points, features, or results covered in the video. Only include specific numbers/stats/results that appear in the video info, or the verified facts above — never fabricate a statistic.
-5. One closing sentence tying it back to the value proposition.
-6. A line reading exactly: "👉 Learn more: [URL]" — [URL] is a literal placeholder, do not substitute a real URL yourself.
-7. 4–6 relevant hashtags, no spaces, mixing brand/product/market tags (e.g. #HitPay #PayNow #Singapore).
+2. Immediately after the hook — within the first 3 lines of the description — one plain declarative sentence naming HitPay and its core identifying credential for this market, pulled from the verified facts below (e.g. "HitPay is a MAS-licensed payment gateway that lets Southeast Asian merchants accept PayNow, cards, and more with no monthly fees."). AI answer engines and search snippets often only surface the opening lines of a description, so the brand name and its authority signal must appear early, not buried after the story.
+3. A short paragraph giving context: what the video covers / who it's for. Start this paragraph directly with the subject (the person, business, or topic) — never with a meta-reference to the video itself like "In this video," "This video covers," or "Watch as...".
+4. If — and only if — the video info includes a direct quote from a named person, include it as: "Quote" – Name, Title. Otherwise, skip the quote entirely. NEVER invent a quote or a speaker.
+5. A line reading exactly "Check out:" followed by a short bulleted list (emoji-led: ✅ 💰 📊 ⏱️ 🔁 etc.) of the concrete points, features, or results covered in the video. Only include specific numbers/stats/results that appear in the video info, or the verified facts above — never fabricate a statistic.
+6. One closing sentence tying it back to the value proposition. Do not repeat the identity/credential sentence from step 2 here — say something new.
+7. A line reading exactly: "👉 Learn more: [URL]" — [URL] is a literal placeholder, do not substitute a real URL yourself.
+8. 4–6 relevant hashtags, no spaces, mixing brand/product/market tags (e.g. #HitPay #PayNow #Singapore).
 
 STYLE RULES:
 - Banned words: {_BANNED_WORDS}
+- Use plain hyphens ("-") for parenthetical breaks, never em dashes ("—")
 - No fabricated testimonials, quotes, or statistics under any circumstance
 - Factual, specific, concrete — not hype
 - Total description length: 150–300 words
@@ -178,14 +181,19 @@ def generate_youtube_description(
     market: str | None = None,
     brand: str = "hitpay",
     video_type: str = "video",
+    is_case_study: bool = False,
     merchant_brand_name: str | None = None,
 ) -> dict:
     """Generate an AEO-optimized YouTube title + description.
 
-    `video_type` is one of "short", "video", or "merchant_case_study". For
-    "merchant_case_study" the title is not generated by the model — it's the
-    fixed HitPay format "{merchant_brand_name} | Builders @ HitPay" — while the
-    description is still generated normally.
+    `video_type` is "short" or "video" and always controls the title's base
+    style. `is_case_study` is an independent flag for merchant case studies,
+    which get a branded title suffix on top of that base style:
+      - video + case study: title is NOT model-generated — it's the fixed
+        format "{merchant_brand_name} | Builders @ HitPay".
+      - short + case study: the model still writes a short punchy hook, and
+        "{merchant_brand_name} x HitPay" is appended after a pipe, e.g.
+        "Crowded events broke their checkout | Harmony Pets x HitPay".
 
     Returns a dict: {title, description, source_post_slug, source_post_title, source_post_url, market, video_type}
     """
@@ -200,15 +208,13 @@ def generate_youtube_description(
     if video_type not in VIDEO_TYPES:
         raise ValueError(f"Unsupported video_type: {video_type}")
 
-    if video_type == "merchant_case_study" and not (merchant_brand_name or "").strip():
-        raise ValueError("merchant_brand_name is required for merchant_case_study")
+    if is_case_study and not (merchant_brand_name or "").strip():
+        raise ValueError("merchant_brand_name is required for a merchant case study")
 
     candidates = _shortlist_candidates(video_info, market, brand)
     slug_lookup = {c["slug"]: c for c in candidates}
 
-    # Merchant case studies use a fixed title format, so the model only needs to
-    # draft the description — reuse the "video" title style guidance for that call.
-    prompt = _build_prompt(video_info, market, candidates, "video" if video_type == "merchant_case_study" else video_type)
+    prompt = _build_prompt(video_info, market, candidates, video_type)
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     response = _messages_create_with_retry(
@@ -225,8 +231,10 @@ def generate_youtube_description(
         from json_repair import repair_json
         data = json.loads(repair_json(raw_text))
 
-    if video_type == "merchant_case_study":
+    if is_case_study and video_type == "video":
         title = f"{merchant_brand_name.strip()} | Builders @ HitPay"
+    elif is_case_study and video_type == "short":
+        title = f"{data.get('title', '').strip()} | {merchant_brand_name.strip()} x HitPay"
     else:
         title = data.get("title", "").strip()
 

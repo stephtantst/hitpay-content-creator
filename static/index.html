@@ -3331,11 +3331,16 @@
         <div class="yt-sub">Paste in what the video is about — a summary, talking points, or transcript notes. We'll write an AEO-optimized title and description, and link "Learn more" to the most relevant published blog post for the market you pick.</div>
         <div class="field-group">
           <div class="field-label">Video type</div>
-          <select class="modal-select" id="ytVideoType" onchange="ytOnVideoTypeChange()">
+          <select class="modal-select" id="ytVideoType">
             <option value="short">🎬 Short</option>
             <option value="video" selected>📹 Video (long-form)</option>
-            <option value="merchant_case_study">🏪 Merchant Case Study</option>
           </select>
+        </div>
+        <div class="field-group">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="ytIsCaseStudy" onchange="ytOnCaseStudyToggle()">
+            🏪 This is a merchant case study
+          </label>
         </div>
         <div class="field-group" id="ytBrandNameGroup" style="display:none;">
           <div class="field-label">Merchant brand name</div>
@@ -7653,17 +7658,18 @@ let ytHistory = [];
 let ytLastDescription = '';
 let ytLastTitle = '';
 
-const YT_VIDEO_TYPE_LABEL = { short: 'Short', video: 'Video', merchant_case_study: 'Case Study' };
+const YT_VIDEO_TYPE_LABEL = { short: 'Short', video: 'Video' };
 
-function ytOnVideoTypeChange() {
-  const videoType = document.getElementById('ytVideoType').value;
-  document.getElementById('ytBrandNameGroup').style.display = videoType === 'merchant_case_study' ? 'block' : 'none';
+function ytOnCaseStudyToggle() {
+  const isCaseStudy = document.getElementById('ytIsCaseStudy').checked;
+  document.getElementById('ytBrandNameGroup').style.display = isCaseStudy ? 'block' : 'none';
 }
 
 async function ytGenerateDescription() {
   const videoInfo = document.getElementById('ytVideoInfo').value.trim();
   const market = document.getElementById('ytMarket').value;
   const videoType = document.getElementById('ytVideoType').value;
+  const isCaseStudy = document.getElementById('ytIsCaseStudy').checked;
   const brandName = document.getElementById('ytBrandName').value.trim();
   const errEl = document.getElementById('ytError');
   errEl.style.display = 'none';
@@ -7673,7 +7679,7 @@ async function ytGenerateDescription() {
     errEl.style.display = 'block';
     return;
   }
-  if (videoType === 'merchant_case_study' && !brandName) {
+  if (isCaseStudy && !brandName) {
     errEl.textContent = 'Enter the merchant brand name for a case study title.';
     errEl.style.display = 'block';
     return;
@@ -7692,7 +7698,8 @@ async function ytGenerateDescription() {
         market: market || null,
         brand: activeBrand,
         video_type: videoType,
-        merchant_brand_name: videoType === 'merchant_case_study' ? brandName : null,
+        is_case_study: isCaseStudy,
+        merchant_brand_name: isCaseStudy ? brandName : null,
       }),
     });
     if (!res.ok) {
@@ -7786,7 +7793,8 @@ function ytSelectHistoryItem(id) {
   document.getElementById('ytVideoInfo').value = h.video_info || '';
   document.getElementById('ytMarket').value = h.market || '';
   document.getElementById('ytVideoType').value = h.video_type || 'video';
-  ytOnVideoTypeChange();
+  document.getElementById('ytIsCaseStudy').checked = false;
+  ytOnCaseStudyToggle();
   ytRenderResult({
     title: h.title,
     description: h.description,

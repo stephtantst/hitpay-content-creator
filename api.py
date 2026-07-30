@@ -2451,6 +2451,7 @@ class GenerateYoutubeDescriptionRequest(BaseModel):
     market: str | None = None
     brand: str = "hitpay"
     video_type: str = "video"
+    is_case_study: bool = False
     merchant_brand_name: str | None = None
 
 
@@ -2467,6 +2468,7 @@ def api_generate_youtube_description(
             market=body.market or None,
             brand=body.brand,
             video_type=body.video_type,
+            is_case_study=body.is_case_study,
             merchant_brand_name=body.merchant_brand_name,
         )
     except ValueError as e:
