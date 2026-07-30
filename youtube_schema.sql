@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS youtube_descriptions (
   video_info        TEXT NOT NULL,
   market            VARCHAR(10),
   brand             VARCHAR(50) NOT NULL DEFAULT 'hitpay',
+  title             VARCHAR(300),
+  video_type        VARCHAR(30) NOT NULL DEFAULT 'video',
   description       TEXT NOT NULL,
   source_post_id    INTEGER REFERENCES posts(id) ON DELETE SET NULL,
   source_post_slug  VARCHAR(300),

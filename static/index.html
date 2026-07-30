@@ -3327,8 +3327,20 @@
   <div class="yt-wrap">
     <div class="yt-grid">
       <div>
-        <div class="yt-title">Generate a YouTube description</div>
-        <div class="yt-sub">Paste in what the video is about — a summary, talking points, or transcript notes. We'll write an AEO-optimized description and link "Learn more" to the most relevant published blog post for the market you pick.</div>
+        <div class="yt-title">Generate a YouTube title &amp; description</div>
+        <div class="yt-sub">Paste in what the video is about — a summary, talking points, or transcript notes. We'll write an AEO-optimized title and description, and link "Learn more" to the most relevant published blog post for the market you pick.</div>
+        <div class="field-group">
+          <div class="field-label">Video type</div>
+          <select class="modal-select" id="ytVideoType" onchange="ytOnVideoTypeChange()">
+            <option value="short">🎬 Short</option>
+            <option value="video" selected>📹 Video (long-form)</option>
+            <option value="merchant_case_study">🏪 Merchant Case Study</option>
+          </select>
+        </div>
+        <div class="field-group" id="ytBrandNameGroup" style="display:none;">
+          <div class="field-label">Merchant brand name</div>
+          <input type="text" class="modal-input" id="ytBrandName" placeholder="e.g. Wei Ling's Cafe" style="margin-bottom:0;">
+        </div>
         <div class="field-group">
           <div class="field-label">Video info</div>
           <textarea class="field-textarea" id="ytVideoInfo" rows="10" placeholder="e.g. This video walks through how a Singapore cafe switched from cash-only to accepting PayNow and cards with HitPay. Covers: setting up a payment link, no monthly fees, next-business-day payouts. Includes a quote from the owner: 'Setup took us 10 minutes.' - Wei Ling, owner"></textarea>
@@ -3342,8 +3354,16 @@
             <option value="PH">🇵🇭 Philippines</option>
           </select>
         </div>
-        <button class="btn btn-primary" id="ytGenerateBtn" onclick="ytGenerateDescription()" style="width:100%;">Generate Description</button>
+        <button class="btn btn-primary" id="ytGenerateBtn" onclick="ytGenerateDescription()" style="width:100%;">Generate Title &amp; Description</button>
         <div id="ytError" style="display:none;color:var(--red);font-size:12.5px;margin-top:8px;"></div>
+
+        <div class="field-group" style="margin-top:20px;">
+          <div class="field-label">Title</div>
+          <div class="yt-output-box" id="ytTitleBox"><span class="yt-output-empty">Generated title will appear here…</span></div>
+          <div class="yt-output-actions" id="ytTitleActions" style="display:none;">
+            <button class="btn btn-secondary" onclick="ytCopyTitle()">📋 Copy</button>
+          </div>
+        </div>
 
         <div class="field-group" style="margin-top:20px;">
           <div class="field-label">Description</div>
@@ -3357,8 +3377,52 @@
 
       <div>
         <div class="yt-history-title">History</div>
-        <div id="ytHistoryList"><div class="yt-history-empty">No descriptions generated yet.</div></div>
+        <table class="posts-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th style="width:80px;">Type</th>
+              <th style="width:90px;">Market</th>
+              <th style="width:130px;">Source Post</th>
+              <th style="width:90px;">Created</th>
+              <th style="width:90px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="ytListBody"><tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-dim);">No descriptions generated yet.</td></tr></tbody>
+        </table>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- YouTube Description Edit Modal -->
+<div class="modal-overlay" id="ytEditModalOverlay">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-title">Edit YouTube Description</div>
+    <div class="field-group">
+      <div class="field-label">Title</div>
+      <input type="text" class="modal-input" id="ytEditTitle" style="margin-bottom:0;">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Video info</div>
+      <textarea class="field-textarea" id="ytEditVideoInfo" rows="4"></textarea>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Market</div>
+      <select class="modal-select" id="ytEditMarket">
+        <option value="">🌏 Global (no specific market)</option>
+        <option value="SG">🇸🇬 Singapore</option>
+        <option value="MY">🇲🇾 Malaysia</option>
+        <option value="PH">🇵🇭 Philippines</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Description</div>
+      <textarea class="field-textarea" id="ytEditDescription" rows="8"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="ytCloseEditModal()">Cancel</button>
+      <button class="btn btn-primary" id="ytEditSaveBtn" onclick="ytSaveEdit()">Save</button>
     </div>
   </div>
 </div>
@@ -7587,15 +7651,30 @@ function switchPlatform(platform) {
 // ── YouTube description generator ───────────────────────────────────────────
 let ytHistory = [];
 let ytLastDescription = '';
+let ytLastTitle = '';
+
+const YT_VIDEO_TYPE_LABEL = { short: 'Short', video: 'Video', merchant_case_study: 'Case Study' };
+
+function ytOnVideoTypeChange() {
+  const videoType = document.getElementById('ytVideoType').value;
+  document.getElementById('ytBrandNameGroup').style.display = videoType === 'merchant_case_study' ? 'block' : 'none';
+}
 
 async function ytGenerateDescription() {
   const videoInfo = document.getElementById('ytVideoInfo').value.trim();
   const market = document.getElementById('ytMarket').value;
+  const videoType = document.getElementById('ytVideoType').value;
+  const brandName = document.getElementById('ytBrandName').value.trim();
   const errEl = document.getElementById('ytError');
   errEl.style.display = 'none';
 
   if (!videoInfo) {
     errEl.textContent = 'Enter some info about the video first.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (videoType === 'merchant_case_study' && !brandName) {
+    errEl.textContent = 'Enter the merchant brand name for a case study title.';
     errEl.style.display = 'block';
     return;
   }
@@ -7608,7 +7687,13 @@ async function ytGenerateDescription() {
     const res = await fetch('/api/youtube-descriptions/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ video_info: videoInfo, market: market || null, brand: activeBrand }),
+      body: JSON.stringify({
+        video_info: videoInfo,
+        market: market || null,
+        brand: activeBrand,
+        video_type: videoType,
+        merchant_brand_name: videoType === 'merchant_case_study' ? brandName : null,
+      }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -7617,17 +7702,22 @@ async function ytGenerateDescription() {
     const result = await res.json();
     ytRenderResult(result);
     await ytLoadHistory();
-    showToast('Description generated', 'success');
+    showToast('Title & description generated', 'success');
   } catch (e) {
     errEl.textContent = e.message || 'Generation failed';
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Generate Description';
+    btn.textContent = 'Generate Title & Description';
   }
 }
 
 function ytRenderResult(result) {
+  ytLastTitle = result.title || '';
+  document.getElementById('ytTitleBox').textContent = ytLastTitle || '';
+  if (!ytLastTitle) document.getElementById('ytTitleBox').innerHTML = '<span class="yt-output-empty">Generated title will appear here…</span>';
+  document.getElementById('ytTitleActions').style.display = ytLastTitle ? 'flex' : 'none';
+
   ytLastDescription = result.description || '';
   document.getElementById('ytOutputBox').textContent = ytLastDescription;
   document.getElementById('ytOutputActions').style.display = ytLastDescription ? 'flex' : 'none';
@@ -7642,6 +7732,11 @@ function ytRenderResult(result) {
   }
 }
 
+function ytCopyTitle() {
+  if (!ytLastTitle) return;
+  navigator.clipboard.writeText(ytLastTitle).then(() => showToast('Copied to clipboard', 'success'));
+}
+
 function ytCopyDescription() {
   if (!ytLastDescription) return;
   navigator.clipboard.writeText(ytLastDescription).then(() => showToast('Copied to clipboard', 'success'));
@@ -7652,29 +7747,36 @@ async function ytLoadHistory() {
     const res = await fetch(`/api/youtube-descriptions?brand=${activeBrand}`);
     if (!res.ok) return;
     ytHistory = await res.json();
-    ytRenderHistory();
+    ytRenderTable();
   } catch (e) { /* non-fatal */ }
 }
 
-function ytRenderHistory() {
-  const list = document.getElementById('ytHistoryList');
+function ytRenderTable() {
+  const tbody = document.getElementById('ytListBody');
   if (!ytHistory.length) {
-    list.innerHTML = '<div class="yt-history-empty">No descriptions generated yet.</div>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-dim);">No descriptions generated yet.</td></tr>';
     return;
   }
-  list.innerHTML = ytHistory.map(h => {
-    const marketLabel = h.market || 'Global';
-    const created = h.created_at ? new Date(h.created_at).toLocaleDateString() : '';
-    const snippet = (h.video_info || '').slice(0, 90);
+  tbody.innerHTML = ytHistory.map(h => {
+    const marketLabel = h.market ? (xMarketFlag(h.market) + ' ' + h.market) : 'Global';
+    const created = h.created_at ? fmtDate(h.created_at) : '—';
+    const titleText = h.title || (h.video_info || '').slice(0, 90);
+    const typeLabel = YT_VIDEO_TYPE_LABEL[h.video_type] || h.video_type || 'Video';
+    const sourcePost = h.source_post_slug
+      ? `<a href="${BLOG_BASE_URL_YT}/${h.source_post_slug}" target="_blank" rel="noopener" onclick="event.stopPropagation();">${escHtml(h.source_post_title || h.source_post_slug)}</a>`
+      : '—';
     return `
-      <div class="yt-history-item" onclick="ytSelectHistoryItem(${h.id})">
-        <div class="yt-history-top">
-          <span class="yt-history-market">${escHtml(marketLabel)}</span>
-          <span class="yt-history-date">${created}</span>
+      <tr style="cursor:pointer;" onclick="ytSelectHistoryItem(${h.id})">
+        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:500;">${escHtml(titleText)}</td>
+        <td><span class="market-badge">${escHtml(typeLabel)}</span></td>
+        <td style="font-size:13px;">${marketLabel}</td>
+        <td style="font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sourcePost}</td>
+        <td style="font-size:12px;color:var(--text-dim);">${created}</td>
+        <td>
+          <button class="btn btn-secondary" style="font-size:12px;padding:4px 8px;" onclick="event.stopPropagation();ytOpenEditModal(${h.id})">Edit</button>
           <button class="yt-history-del" onclick="event.stopPropagation(); ytDeleteHistoryItem(${h.id})" title="Delete">✕</button>
-        </div>
-        <div class="yt-history-snippet">${escHtml(snippet)}</div>
-      </div>`;
+        </td>
+      </tr>`;
   }).join('');
 }
 
@@ -7683,7 +7785,10 @@ function ytSelectHistoryItem(id) {
   if (!h) return;
   document.getElementById('ytVideoInfo').value = h.video_info || '';
   document.getElementById('ytMarket').value = h.market || '';
+  document.getElementById('ytVideoType').value = h.video_type || 'video';
+  ytOnVideoTypeChange();
   ytRenderResult({
+    title: h.title,
     description: h.description,
     source_post_url: h.source_post_slug ? `${BLOG_BASE_URL_YT}/${h.source_post_slug}` : null,
     source_post_title: h.source_post_title,
@@ -7695,7 +7800,54 @@ async function ytDeleteHistoryItem(id) {
   const res = await fetch(`/api/youtube-descriptions/${id}`, { method: 'DELETE' });
   if (res.ok) {
     ytHistory = ytHistory.filter(h => h.id !== id);
-    ytRenderHistory();
+    ytRenderTable();
+  }
+}
+
+let currentYtEditId = null;
+
+function ytOpenEditModal(id) {
+  const h = ytHistory.find(x => x.id === id);
+  if (!h) return;
+  currentYtEditId = id;
+  document.getElementById('ytEditTitle').value = h.title || '';
+  document.getElementById('ytEditVideoInfo').value = h.video_info || '';
+  document.getElementById('ytEditMarket').value = h.market || '';
+  document.getElementById('ytEditDescription').value = h.description || '';
+  document.getElementById('ytEditModalOverlay').classList.add('open');
+}
+
+function ytCloseEditModal() {
+  document.getElementById('ytEditModalOverlay').classList.remove('open');
+  currentYtEditId = null;
+}
+
+async function ytSaveEdit() {
+  if (!currentYtEditId) return;
+  const title = document.getElementById('ytEditTitle').value.trim();
+  const video_info = document.getElementById('ytEditVideoInfo').value.trim();
+  const market = document.getElementById('ytEditMarket').value;
+  const description = document.getElementById('ytEditDescription').value.trim();
+
+  const btn = document.getElementById('ytEditSaveBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/youtube-descriptions/${currentYtEditId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, video_info, market: market || null, description }),
+    });
+    if (!res.ok) { showToast('Save failed', 'error'); return; }
+
+    const idx = ytHistory.findIndex(h => h.id === currentYtEditId);
+    if (idx !== -1) {
+      ytHistory[idx] = { ...ytHistory[idx], title, video_info, market: market || null, description };
+    }
+    ytRenderTable();
+    ytCloseEditModal();
+    showToast('Saved');
+  } finally {
+    btn.disabled = false;
   }
 }
 

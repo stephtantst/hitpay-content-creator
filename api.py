@@ -42,6 +42,7 @@ from src.database import (
     migrate_source_blog_post_id,
     migrate_source_column,
     migrate_youtube_descriptions_table,
+    migrate_youtube_title_column,
     list_feedback,
     list_logins,
     list_posts,
@@ -56,8 +57,10 @@ from src.database import (
 from src.generator import generate_blog_post, rewrite_blog_post
 from src.youtube_database import (
     delete_youtube_description,
+    get_youtube_description,
     list_youtube_descriptions,
     save_youtube_description,
+    update_youtube_description,
 )
 from src.post_writer import (
     export_bulk_to_csv,
@@ -77,7 +80,7 @@ GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    for migrate in (migrate_brand_column, migrate_x_repurposed_column, migrate_source_blog_post_id, migrate_source_column, migrate_youtube_descriptions_table):
+    for migrate in (migrate_brand_column, migrate_x_repurposed_column, migrate_source_blog_post_id, migrate_source_column, migrate_youtube_descriptions_table, migrate_youtube_title_column):
         try:
             migrate()
         except Exception:
@@ -2447,6 +2450,8 @@ class GenerateYoutubeDescriptionRequest(BaseModel):
     video_info: str
     market: str | None = None
     brand: str = "hitpay"
+    video_type: str = "video"
+    merchant_brand_name: str | None = None
 
 
 @app.post("/api/youtube-descriptions/generate")
@@ -2458,7 +2463,11 @@ def api_generate_youtube_description(
 
     try:
         result = generate_youtube_description(
-            body.video_info, market=body.market or None, brand=body.brand
+            body.video_info,
+            market=body.market or None,
+            brand=body.brand,
+            video_type=body.video_type,
+            merchant_brand_name=body.merchant_brand_name,
         )
     except ValueError as e:
         raise HTTPException(422, str(e))
@@ -2476,6 +2485,8 @@ def api_generate_youtube_description(
         source_post_title=result["source_post_title"],
         editor_email=user_email,
         brand=body.brand,
+        title=result["title"],
+        video_type=result["video_type"],
     )
     result["id"] = entry_id
     return result
@@ -2486,6 +2497,44 @@ def api_list_youtube_descriptions(
     market: str = None, brand: str = "hitpay", _: str = Depends(require_auth)
 ):
     return list_youtube_descriptions(market=market, brand=brand)
+
+
+class UpdateYoutubeDescriptionRequest(BaseModel):
+    video_info: str | None = None
+    market: str | None = None
+    description: str | None = None
+    title: str | None = None
+
+
+@app.get("/api/youtube-descriptions/{entry_id}")
+def api_get_youtube_description(entry_id: int, _: str = Depends(require_auth)):
+    entry = get_youtube_description(entry_id)
+    if not entry:
+        raise HTTPException(404, "Not found")
+    return entry
+
+
+@app.put("/api/youtube-descriptions/{entry_id}")
+def api_update_youtube_description(
+    entry_id: int,
+    body: UpdateYoutubeDescriptionRequest,
+    user_email: str = Depends(require_auth),
+):
+    entry = get_youtube_description(entry_id)
+    if not entry:
+        raise HTTPException(404, "Not found")
+    fields = {}
+    if body.video_info is not None:
+        fields["video_info"] = body.video_info.strip()
+    if body.market is not None:
+        fields["market"] = body.market or None
+    if body.description is not None:
+        fields["description"] = body.description.strip()
+    if body.title is not None:
+        fields["title"] = body.title.strip()
+    if fields:
+        update_youtube_description(entry_id, fields)
+    return {"ok": True}
 
 
 @app.delete("/api/youtube-descriptions/{entry_id}")

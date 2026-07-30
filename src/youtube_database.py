@@ -35,15 +35,17 @@ def save_youtube_description(
     source_post_title: str = None,
     editor_email: str = None,
     brand: str = "hitpay",
+    title: str = None,
+    video_type: str = "video",
 ) -> int:
     conn = get_connection()
     rows = conn.run(
         """
         INSERT INTO youtube_descriptions
-            (video_info, description, market, brand, source_post_id, source_post_slug,
+            (video_info, description, market, brand, title, video_type, source_post_id, source_post_slug,
              source_post_title, editor_email)
         VALUES
-            (:video_info, :description, :market, :brand, :source_post_id, :source_post_slug,
+            (:video_info, :description, :market, :brand, :title, :video_type, :source_post_id, :source_post_slug,
              :source_post_title, :editor_email)
         RETURNING id
         """,
@@ -51,12 +53,26 @@ def save_youtube_description(
         description=description,
         market=market or None,
         brand=brand,
+        title=title,
+        video_type=video_type or "video",
         source_post_id=source_post_id,
         source_post_slug=source_post_slug,
         source_post_title=source_post_title,
         editor_email=editor_email,
     )
     return rows[0][0]
+
+
+def update_youtube_description(entry_id: int, fields: dict):
+    if not fields:
+        return
+    set_clauses = ", ".join([f"{k} = :{k}" for k in fields.keys()])
+    conn = get_connection()
+    conn.run(
+        f"UPDATE youtube_descriptions SET {set_clauses}, updated_at = NOW() WHERE id = :id",
+        **fields,
+        id=entry_id,
+    )
 
 
 def delete_youtube_description(entry_id: int):

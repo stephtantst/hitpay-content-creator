@@ -80,6 +80,15 @@ def migrate_youtube_descriptions_table():
     )
 
 
+def migrate_youtube_title_column():
+    """Add title + video_type columns to youtube_descriptions if missing."""
+    conn = get_connection()
+    conn.run("ALTER TABLE youtube_descriptions ADD COLUMN IF NOT EXISTS title VARCHAR(300)")
+    conn.run(
+        "ALTER TABLE youtube_descriptions ADD COLUMN IF NOT EXISTS video_type VARCHAR(30) NOT NULL DEFAULT 'video'"
+    )
+
+
 def migrate_source_column():
     """Add a `source` provenance column to posts + social tables if missing.
 

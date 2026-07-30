@@ -82,7 +82,28 @@ def _shortlist_candidates(video_info: str, market: str | None, brand: str, limit
     return scored[:limit]
 
 
-def _build_prompt(video_info: str, market: str | None, candidates: list[dict]) -> str:
+VIDEO_TYPES = ("short", "video", "merchant_case_study")
+
+_TITLE_STYLE_GUIDANCE = {
+    "short": (
+        "TITLE STYLE — YouTube Short:\n"
+        "Write a short, punchy title (roughly 3–8 words) capturing a single hook, insight, or quote from the "
+        "video info — the kind of line that makes someone stop scrolling. Sentence case (capitalize only the "
+        "first word and proper nouns). No branding, no pipes, no hashtags, no emoji. "
+        'Examples of the style (invented, do not reuse verbatim): "Setup took us 10 minutes", '
+        '"The problem with manual invoicing", "Why merchants are dropping cash-only".'
+    ),
+    "video": (
+        "TITLE STYLE — long-form YouTube video:\n"
+        'Write a title in the format "{Series/Topic} | {Descriptive clause}" — a short topic or series tag, '
+        "a pipe character, then a plain-language clause describing what the video covers. Sentence case. "
+        'Examples of the style (invented, do not reuse verbatim): "HitPay Explains | How QR payments work in '
+        'Southeast Asia", "Merchant Playbook | Setting up PayNow in under 2 minutes".'
+    ),
+}
+
+
+def _build_prompt(video_info: str, market: str | None, candidates: list[dict], video_type: str) -> str:
     market_line = {
         "SG": "This video targets Singapore merchants.",
         "MY": "This video targets Malaysia merchants.",
@@ -95,6 +116,11 @@ def _build_prompt(video_info: str, market: str | None, candidates: list[dict]) -
     ) or "  (none available)"
 
     example = json.dumps({
+        "title": (
+            "Setup took us 10 minutes"
+            if video_type == "short"
+            else "HitPay Explains | Collecting payments faster with PayNow"
+        ),
         "description": (
             "💳 Manual invoicing. Chasing payments. No real-time visibility.\n\n"
             "In this video, we break down how HitPay helps Southeast Asian merchants collect payments faster "
@@ -111,7 +137,7 @@ def _build_prompt(video_info: str, market: str | None, candidates: list[dict]) -
         "source_post_title": candidates[0]["title"] if candidates else None,
     }, ensure_ascii=False, indent=2)
 
-    return f"""You write YouTube video descriptions for HitPay, a Southeast Asian payment gateway. The description must be AEO-optimized (Answer Engine Optimized): the opening lines should let an AI assistant or search engine understand exactly what the video is about and what HitPay offers, without needing to watch it.
+    return f"""You write YouTube video titles and descriptions for HitPay, a Southeast Asian payment gateway. The description must be AEO-optimized (Answer Engine Optimized): the opening lines should let an AI assistant or search engine understand exactly what the video is about and what HitPay offers, without needing to watch it.
 
 {market_line}
 
@@ -123,7 +149,9 @@ VIDEO INFO (freeform notes from the user — this is your ONLY source of truth f
 VERIFIED HITPAY FACTS FOR THIS MARKET (safe to cite):
 {_market_facts(market)}
 
-STRUCTURE (adapt to what the video info actually supports — do not force sections that don't fit):
+{_TITLE_STYLE_GUIDANCE[video_type]}
+
+DESCRIPTION STRUCTURE (adapt to what the video info actually supports — do not force sections that don't fit):
 1. A short 1–2 line hook naming the problem/pain point, emoji-led (1 emoji is enough).
 2. A short paragraph giving context: what the video covers / who it's for.
 3. If — and only if — the video info includes a direct quote from a named person, include it as: "Quote" – Name, Title. Otherwise, skip the quote entirely. NEVER invent a quote or a speaker.
@@ -136,7 +164,7 @@ STYLE RULES:
 - Banned words: {_BANNED_WORDS}
 - No fabricated testimonials, quotes, or statistics under any circumstance
 - Factual, specific, concrete — not hype
-- Total length: 150–300 words
+- Total description length: 150–300 words
 
 CANDIDATE PUBLISHED BLOG POSTS (pick the single most relevant one to link as "Learn more" — must copy the slug exactly as shown, or null if truly none are relevant):
 {candidates_str}
@@ -145,10 +173,21 @@ OUTPUT: Raw JSON only, no markdown fences, matching this shape exactly:
 {example}"""
 
 
-def generate_youtube_description(video_info: str, market: str | None = None, brand: str = "hitpay") -> dict:
-    """Generate an AEO-optimized YouTube description.
+def generate_youtube_description(
+    video_info: str,
+    market: str | None = None,
+    brand: str = "hitpay",
+    video_type: str = "video",
+    merchant_brand_name: str | None = None,
+) -> dict:
+    """Generate an AEO-optimized YouTube title + description.
 
-    Returns a dict: {description, source_post_slug, source_post_title, source_post_url, market}
+    `video_type` is one of "short", "video", or "merchant_case_study". For
+    "merchant_case_study" the title is not generated by the model — it's the
+    fixed HitPay format "{merchant_brand_name} | Builders @ HitPay" — while the
+    description is still generated normally.
+
+    Returns a dict: {title, description, source_post_slug, source_post_title, source_post_url, market, video_type}
     """
     if not video_info or not video_info.strip():
         raise ValueError("video_info is required")
@@ -157,10 +196,19 @@ def generate_youtube_description(video_info: str, market: str | None = None, bra
     if market not in (None, "SG", "MY", "PH"):
         raise ValueError(f"Unsupported market: {market}")
 
+    video_type = video_type or "video"
+    if video_type not in VIDEO_TYPES:
+        raise ValueError(f"Unsupported video_type: {video_type}")
+
+    if video_type == "merchant_case_study" and not (merchant_brand_name or "").strip():
+        raise ValueError("merchant_brand_name is required for merchant_case_study")
+
     candidates = _shortlist_candidates(video_info, market, brand)
     slug_lookup = {c["slug"]: c for c in candidates}
 
-    prompt = _build_prompt(video_info, market, candidates)
+    # Merchant case studies use a fixed title format, so the model only needs to
+    # draft the description — reuse the "video" title style guidance for that call.
+    prompt = _build_prompt(video_info, market, candidates, "video" if video_type == "merchant_case_study" else video_type)
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     response = _messages_create_with_retry(
@@ -176,6 +224,11 @@ def generate_youtube_description(video_info: str, market: str | None = None, bra
     except json.JSONDecodeError:
         from json_repair import repair_json
         data = json.loads(repair_json(raw_text))
+
+    if video_type == "merchant_case_study":
+        title = f"{merchant_brand_name.strip()} | Builders @ HitPay"
+    else:
+        title = data.get("title", "").strip()
 
     description = data.get("description", "").strip()
     chosen_slug = data.get("source_post_slug")
@@ -196,10 +249,12 @@ def generate_youtube_description(video_info: str, market: str | None = None, bra
         source_post_id = None
 
     return {
+        "title": title,
         "description": description,
         "source_post_id": source_post_id,
         "source_post_slug": source_post_slug,
         "source_post_title": source_post_title,
         "source_post_url": url,
         "market": market,
+        "video_type": video_type,
     }
