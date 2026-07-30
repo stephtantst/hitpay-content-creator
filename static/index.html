@@ -2086,8 +2086,10 @@
   .yt-output-box {
     background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
     padding: 14px; font-size: 12.5px; line-height: 1.6; white-space: pre-wrap;
-    color: var(--text); min-height: 160px; font-family: var(--font);
+    color: var(--text); min-height: 160px; font-family: var(--font); outline: none;
+    transition: border-color 0.15s;
   }
+  .yt-output-box:focus { border-color: var(--accent); }
   .yt-output-empty { color: var(--text-dim); font-style: italic; }
   .yt-output-meta { font-size: 11.5px; color: var(--text-muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .yt-output-meta a { color: var(--accent); text-decoration: none; }
@@ -3363,16 +3365,22 @@
         <div id="ytError" style="display:none;color:var(--red);font-size:12.5px;margin-top:8px;"></div>
 
         <div class="field-group" style="margin-top:20px;">
-          <div class="field-label">Title</div>
-          <div class="yt-output-box" id="ytTitleBox"><span class="yt-output-empty">Generated title will appear here…</span></div>
+          <div class="field-label" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Title</span>
+            <span id="ytTitleSaveStatus" style="font-weight:400;color:var(--text-dim);font-size:11px;"></span>
+          </div>
+          <textarea class="yt-output-box" id="ytTitleBox" rows="2" placeholder="Generated title will appear here…" style="width:100%;box-sizing:border-box;resize:vertical;" oninput="ytScheduleAutoSave()"></textarea>
           <div class="yt-output-actions" id="ytTitleActions" style="display:none;">
             <button class="btn btn-secondary" onclick="ytCopyTitle()">📋 Copy</button>
           </div>
         </div>
 
         <div class="field-group" style="margin-top:20px;">
-          <div class="field-label">Description</div>
-          <div class="yt-output-box" id="ytOutputBox"><span class="yt-output-empty">Generated description will appear here…</span></div>
+          <div class="field-label" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Description</span>
+            <span id="ytDescSaveStatus" style="font-weight:400;color:var(--text-dim);font-size:11px;"></span>
+          </div>
+          <textarea class="yt-output-box" id="ytOutputBox" rows="10" placeholder="Generated description will appear here…" style="width:100%;box-sizing:border-box;resize:vertical;" oninput="ytScheduleAutoSave()"></textarea>
           <div class="yt-output-meta" id="ytOutputMeta" style="display:none;"></div>
           <div class="yt-output-actions" id="ytOutputActions" style="display:none;">
             <button class="btn btn-secondary" onclick="ytCopyDescription()">📋 Copy</button>
@@ -7655,8 +7663,8 @@ function switchPlatform(platform) {
 
 // ── YouTube description generator ───────────────────────────────────────────
 let ytHistory = [];
-let ytLastDescription = '';
-let ytLastTitle = '';
+let ytCurrentId = null;
+let ytSaveTimer = null;
 
 const YT_VIDEO_TYPE_LABEL = { short: 'Short', video: 'Video' };
 
@@ -7707,6 +7715,7 @@ async function ytGenerateDescription() {
       throw new Error(data.detail || 'Generation failed');
     }
     const result = await res.json();
+    ytCurrentId = result.id;
     ytRenderResult(result);
     await ytLoadHistory();
     showToast('Title & description generated', 'success');
@@ -7720,14 +7729,16 @@ async function ytGenerateDescription() {
 }
 
 function ytRenderResult(result) {
-  ytLastTitle = result.title || '';
-  document.getElementById('ytTitleBox').textContent = ytLastTitle || '';
-  if (!ytLastTitle) document.getElementById('ytTitleBox').innerHTML = '<span class="yt-output-empty">Generated title will appear here…</span>';
-  document.getElementById('ytTitleActions').style.display = ytLastTitle ? 'flex' : 'none';
+  const title = result.title || '';
+  document.getElementById('ytTitleBox').value = title;
+  document.getElementById('ytTitleActions').style.display = title ? 'flex' : 'none';
 
-  ytLastDescription = result.description || '';
-  document.getElementById('ytOutputBox').textContent = ytLastDescription;
-  document.getElementById('ytOutputActions').style.display = ytLastDescription ? 'flex' : 'none';
+  const description = result.description || '';
+  document.getElementById('ytOutputBox').value = description;
+  document.getElementById('ytOutputActions').style.display = description ? 'flex' : 'none';
+
+  document.getElementById('ytTitleSaveStatus').textContent = '';
+  document.getElementById('ytDescSaveStatus').textContent = '';
 
   const metaEl = document.getElementById('ytOutputMeta');
   if (result.source_post_url) {
@@ -7740,13 +7751,48 @@ function ytRenderResult(result) {
 }
 
 function ytCopyTitle() {
-  if (!ytLastTitle) return;
-  navigator.clipboard.writeText(ytLastTitle).then(() => showToast('Copied to clipboard', 'success'));
+  const title = document.getElementById('ytTitleBox').value;
+  if (!title) return;
+  navigator.clipboard.writeText(title).then(() => showToast('Copied to clipboard', 'success'));
 }
 
 function ytCopyDescription() {
-  if (!ytLastDescription) return;
-  navigator.clipboard.writeText(ytLastDescription).then(() => showToast('Copied to clipboard', 'success'));
+  const description = document.getElementById('ytOutputBox').value;
+  if (!description) return;
+  navigator.clipboard.writeText(description).then(() => showToast('Copied to clipboard', 'success'));
+}
+
+function ytScheduleAutoSave() {
+  if (!ytCurrentId) return;
+  document.getElementById('ytTitleSaveStatus').textContent = 'Saving…';
+  document.getElementById('ytDescSaveStatus').textContent = 'Saving…';
+  clearTimeout(ytSaveTimer);
+  ytSaveTimer = setTimeout(ytAutoSave, 800);
+}
+
+async function ytAutoSave() {
+  if (!ytCurrentId) return;
+  const id = ytCurrentId;
+  const title = document.getElementById('ytTitleBox').value.trim();
+  const description = document.getElementById('ytOutputBox').value.trim();
+
+  try {
+    const res = await fetch(`/api/youtube-descriptions/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, description }),
+    });
+    if (!res.ok) throw new Error('Save failed');
+
+    const idx = ytHistory.findIndex(h => h.id === id);
+    if (idx !== -1) ytHistory[idx] = { ...ytHistory[idx], title, description };
+    ytRenderTable();
+    document.getElementById('ytTitleSaveStatus').textContent = 'Saved';
+    document.getElementById('ytDescSaveStatus').textContent = 'Saved';
+  } catch (e) {
+    document.getElementById('ytTitleSaveStatus').textContent = 'Save failed';
+    document.getElementById('ytDescSaveStatus').textContent = 'Save failed';
+  }
 }
 
 async function ytLoadHistory() {
@@ -7790,6 +7836,7 @@ function ytRenderTable() {
 function ytSelectHistoryItem(id) {
   const h = ytHistory.find(x => x.id === id);
   if (!h) return;
+  ytCurrentId = id;
   document.getElementById('ytVideoInfo').value = h.video_info || '';
   document.getElementById('ytMarket').value = h.market || '';
   document.getElementById('ytVideoType').value = h.video_type || 'video';
@@ -7809,6 +7856,10 @@ async function ytDeleteHistoryItem(id) {
   if (res.ok) {
     ytHistory = ytHistory.filter(h => h.id !== id);
     ytRenderTable();
+    if (ytCurrentId === id) {
+      ytCurrentId = null;
+      ytRenderResult({});
+    }
   }
 }
 

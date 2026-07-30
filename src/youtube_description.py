@@ -155,7 +155,7 @@ VERIFIED HITPAY FACTS FOR THIS MARKET (safe to cite):
 DESCRIPTION STRUCTURE (adapt to what the video info actually supports — do not force sections that don't fit):
 1. A short 1–2 line hook naming the problem/pain point, emoji-led (1 emoji is enough).
 2. Immediately after the hook — within the first 3 lines of the description — one plain declarative sentence naming HitPay and its core identifying credential for this market, pulled from the verified facts below (e.g. "HitPay is a MAS-licensed payment gateway that lets Southeast Asian merchants accept PayNow, cards, and more with no monthly fees."). AI answer engines and search snippets often only surface the opening lines of a description, so the brand name and its authority signal must appear early, not buried after the story.
-3. A short paragraph giving context: what the video covers / who it's for. Start this paragraph directly with the subject (the person, business, or topic) — never with a meta-reference to the video itself like "In this video," "This video covers," or "Watch as...".
+3. A short paragraph telling the subject's story directly — who they are, and the tension or stakes that make it interesting: what problem they hit, what was at risk, or what changed for them. This must read like a story beat, not a table of contents. NEVER describe the video as an object anywhere in this paragraph (or anywhere else in the description) — banned phrasing includes "in this video," "this video covers," "this video shows," "this episode," "watch as," "we'll walk through," "in this episode." Write about the business/person directly, never about the video itself.
 4. If — and only if — the video info includes a direct quote from a named person, include it as: "Quote" – Name, Title. Otherwise, skip the quote entirely. NEVER invent a quote or a speaker.
 5. A line reading exactly "Check out:" followed by a short bulleted list (emoji-led: ✅ 💰 📊 ⏱️ 🔁 etc.) of the concrete points, features, or results covered in the video. Only include specific numbers/stats/results that appear in the video info, or the verified facts above — never fabricate a statistic.
 6. One closing sentence tying it back to the value proposition. Do not repeat the identity/credential sentence from step 2 here — say something new.
@@ -164,9 +164,11 @@ DESCRIPTION STRUCTURE (adapt to what the video info actually supports — do not
 
 STYLE RULES:
 - Banned words: {_BANNED_WORDS}
+- Banned phrases (anywhere in the description): "in this video", "this video covers", "this video shows", "this episode", "watch as", "we'll walk through"
 - Use plain hyphens ("-") for parenthetical breaks, never em dashes ("—")
 - No fabricated testimonials, quotes, or statistics under any circumstance
 - Factual, specific, concrete — not hype
+- Curiosity-driven and impactful, not informational — the story paragraph should make someone want to know what happened, not read like a summary of contents
 - Total description length: 150–300 words
 
 CANDIDATE PUBLISHED BLOG POSTS (pick the single most relevant one to link as "Learn more" — must copy the slug exactly as shown, or null if truly none are relevant):
