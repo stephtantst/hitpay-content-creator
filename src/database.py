@@ -38,9 +38,9 @@ def init_db():
 
 
 def migrate_brand_column():
-    """Add brand column to posts, x_posts, threads_posts if missing."""
+    """Add brand column to posts + social post tables if missing."""
     conn = get_connection()
-    for table in ("posts", "x_posts", "threads_posts"):
+    for table in ("posts", "x_posts", "threads_posts", "linkedin_posts", "reddit_posts"):
         conn.run(
             f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS brand VARCHAR(50) DEFAULT 'hitpay'"
         )
@@ -49,7 +49,7 @@ def migrate_brand_column():
 def migrate_source_blog_post_id():
     """Add source_blog_post_id FK to social post tables if missing."""
     conn = get_connection()
-    for table in ("x_posts", "threads_posts", "linkedin_posts"):
+    for table in ("x_posts", "threads_posts", "linkedin_posts", "reddit_posts"):
         conn.run(
             f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS source_blog_post_id INTEGER"
         )
@@ -86,7 +86,7 @@ def migrate_source_column():
     Used to tag content generated from a product launch (source='product_launch').
     """
     conn = get_connection()
-    for table in ("posts", "x_posts", "threads_posts", "linkedin_posts"):
+    for table in ("posts", "x_posts", "threads_posts", "linkedin_posts", "reddit_posts"):
         conn.run(
             f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS source VARCHAR(50)"
         )
