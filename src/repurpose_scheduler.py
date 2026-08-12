@@ -1,13 +1,13 @@
 """
 Reusable repurpose-and-schedule logic.
 
-Generates X, Threads, and LinkedIn drafts from a published blog post and assigns
-them all to the same next available weekday slot (09:00 SGT = 01:00 UTC).
+Generates X, Threads, LinkedIn, and Reddit drafts from a published blog post and
+assigns them all to the same next available weekday slot (09:00 SGT = 01:00 UTC).
 
 Usage:
     from src.repurpose_scheduler import repurpose_and_schedule
     result = repurpose_and_schedule(post, user_email="steph@hit-pay.com")
-    # {"ok": True/False, "date": datetime, "x_id": int, "threads_id": int, "linkedin_id": int, "errors": dict}
+    # {"ok": True/False, "date": datetime, "x_id": int, "threads_id": int, "linkedin_id": int, "reddit_id": int, "errors": dict}
 """
 import random
 import re
@@ -63,6 +63,8 @@ def _get_scheduled_theme_dates() -> list:
             SELECT source_blog_post_id, scheduled_at FROM threads_posts  WHERE scheduled_at IS NOT NULL AND source_blog_post_id IS NOT NULL
             UNION
             SELECT source_blog_post_id, scheduled_at FROM linkedin_posts WHERE scheduled_at IS NOT NULL AND source_blog_post_id IS NOT NULL
+            UNION
+            SELECT source_blog_post_id, scheduled_at FROM reddit_posts    WHERE scheduled_at IS NOT NULL AND source_blog_post_id IS NOT NULL
         ) s
         JOIN posts p ON p.id = s.source_blog_post_id
         """
@@ -83,7 +85,8 @@ def get_next_schedule_date(theme_keywords: set = None) -> datetime:
         "SELECT GREATEST("
         "  (SELECT MAX(scheduled_at) FROM x_posts       WHERE scheduled_at IS NOT NULL),"
         "  (SELECT MAX(scheduled_at) FROM threads_posts  WHERE scheduled_at IS NOT NULL),"
-        "  (SELECT MAX(scheduled_at) FROM linkedin_posts WHERE scheduled_at IS NOT NULL)"
+        "  (SELECT MAX(scheduled_at) FROM linkedin_posts WHERE scheduled_at IS NOT NULL),"
+        "  (SELECT MAX(scheduled_at) FROM reddit_posts    WHERE scheduled_at IS NOT NULL)"
         ")"
     )
     max_date = rows[0][0] if rows and rows[0][0] else None
@@ -124,12 +127,12 @@ def _ensure_url(content: str, blog_url: str) -> str:
 
 def repurpose_and_schedule(post: dict, user_email: str, override_date: datetime = None) -> dict:
     """
-    Generate X, Threads, and LinkedIn drafts for *post* and set their
+    Generate X, Threads, LinkedIn, and Reddit drafts for *post* and set their
     scheduled_at to the same next available weekday (or override_date if given).
 
     Only published posts should be passed in; raises ValueError otherwise.
 
-    Returns a dict with keys: ok, date, x_id, threads_id, linkedin_id, errors.
+    Returns a dict with keys: ok, date, x_id, threads_id, linkedin_id, reddit_id, errors.
     """
     if post.get("status") not in ("published",):
         raise ValueError(
@@ -142,6 +145,8 @@ def repurpose_and_schedule(post: dict, user_email: str, override_date: datetime 
     from src.repurposer import repurpose_post_as_thread, _cap_tweet_post_url
     from src.threads_thought_leadership import generate_threads_story
     from src.linkedin_generator import generate_linkedin_post as _gen_li
+    from src.reddit_database import create_reddit_post
+    from src.reddit_generator import generate_reddit_post as _gen_reddit
 
     post_id    = post["id"]
     market     = (post.get("country") or "SG").upper()
@@ -215,11 +220,33 @@ def repurpose_and_schedule(post: dict, user_email: str, override_date: datetime 
     except Exception as exc:
         errors["linkedin"] = str(exc)
 
+    # --- Reddit ---
+    reddit_id = None
+    try:
+        r = _gen_reddit(post, market=market, brand=brand)
+        body = (r.get("content") or "").strip()
+        if not body:
+            raise ValueError("generate_reddit_post returned empty OP body")
+        reddit_id = create_reddit_post(
+            content=body,
+            title=r.get("title"),
+            subreddit=r.get("subreddit"),
+            reply_comment=r.get("reply_comment"),
+            market=market,
+            editor_email=user_email,
+            source_blog_post_id=post_id,
+            brand=brand,
+            scheduled_at=slot_date,
+        )
+    except Exception as exc:
+        errors["reddit"] = str(exc)
+
     return {
         "ok":          not errors,
         "date":        slot_date,
         "x_id":        x_id,
         "threads_id":  threads_id,
         "linkedin_id": linkedin_id,
+        "reddit_id":   reddit_id,
         "errors":      errors,
     }

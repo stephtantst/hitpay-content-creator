@@ -1528,6 +1528,190 @@ def api_generate_linkedin_from_changelog(
     return {"created": [{"id": post_id, "preview": full_content[:100]}], "total": 1, "market": body.market}
 
 
+# ── Reddit Posts ──────────────────────────────────────────────────────────────
+
+from src.reddit_database import (
+    list_reddit_posts,
+    get_reddit_post,
+    get_reddit_posts_by_blog_post_id,
+    create_reddit_post,
+    update_reddit_post,
+    change_reddit_post_status as _change_re_status,
+    delete_reddit_post,
+    log_reddit_audit,
+    get_reddit_audit_log,
+)
+
+_DEFAULT_SUBREDDIT = "r/HitPay_official"
+
+
+class CreateRedditPostRequest(BaseModel):
+    content: str                       # OP body (merchant voice)
+    title: str | None = None
+    subreddit: str | None = None
+    reply_comment: str | None = None
+    market: str | None = None
+    scheduled_at: str | None = None
+    brand: str = "hitpay"
+
+
+class UpdateRedditPostRequest(BaseModel):
+    content: str | None = None
+    title: str | None = None
+    subreddit: str | None = None
+    reply_comment: str | None = None
+    market: str | None = None
+    scheduled_at: str | None = None
+
+
+class RedditStatusRequest(BaseModel):
+    status: str
+    scheduled_at: str | None = None
+    post_url: str | None = None
+
+
+class RedditBulkDeleteRequest(BaseModel):
+    ids: list[int]
+
+
+class GenerateRedditPostRequest(BaseModel):
+    market: str | None = None
+    topic_hint: str | None = None
+    source_blog_post_id: int | None = None
+    brand: str = "hitpay"
+
+
+@app.get("/api/reddit-posts")
+def api_list_reddit_posts(status: str = None, market: str = None, brand: str = None, _: str = Depends(require_auth)):
+    return list_reddit_posts(
+        status if status and status != "all" else None,
+        market if market and market != "all" else None,
+        brand if brand else None,
+    )
+
+
+@app.post("/api/reddit-posts")
+def api_create_reddit_post(body: CreateRedditPostRequest, user_email: str = Depends(require_auth)):
+    if not body.content.strip():
+        raise HTTPException(400, "OP body cannot be empty")
+    post_id = create_reddit_post(
+        content=body.content.strip(),
+        title=(body.title or "").strip() or None,
+        subreddit=(body.subreddit or "").strip() or _DEFAULT_SUBREDDIT,
+        reply_comment=(body.reply_comment or "").strip() or None,
+        market=body.market or None,
+        scheduled_at=body.scheduled_at or None,
+        editor_email=user_email,
+        brand=body.brand or "hitpay",
+    )
+    log_reddit_audit(post_id, user_email, "created", {"market": body.market or ""})
+    return {"id": post_id}
+
+
+@app.get("/api/reddit-posts/{post_id}")
+def api_get_reddit_post(post_id: int, _: str = Depends(require_auth)):
+    post = get_reddit_post(post_id)
+    if not post:
+        raise HTTPException(404, "Reddit post not found")
+    return post
+
+
+@app.put("/api/reddit-posts/{post_id}")
+def api_update_reddit_post(post_id: int, body: UpdateRedditPostRequest, user_email: str = Depends(require_auth)):
+    post = get_reddit_post(post_id)
+    if not post:
+        raise HTTPException(404, "Reddit post not found")
+    fields, changed = {}, []
+    if body.content is not None:
+        fields["content"] = body.content.strip()
+        changed.append("content")
+    if body.title is not None:
+        fields["title"] = body.title.strip() or None
+        changed.append("title")
+    if body.subreddit is not None:
+        fields["subreddit"] = body.subreddit.strip() or _DEFAULT_SUBREDDIT
+        changed.append("subreddit")
+    if body.reply_comment is not None:
+        fields["reply_comment"] = body.reply_comment.strip() or None
+        changed.append("reply_comment")
+    if body.market is not None:
+        fields["market"] = body.market or None
+        changed.append("market")
+    if body.scheduled_at is not None:
+        fields["scheduled_at"] = body.scheduled_at or None
+        changed.append("scheduled_at")
+    if fields:
+        update_reddit_post(post_id, fields)
+        log_reddit_audit(post_id, user_email, "edited", {"fields": changed})
+    return {"ok": True}
+
+
+@app.post("/api/reddit-posts/{post_id}/status")
+def api_change_reddit_post_status(post_id: int, body: RedditStatusRequest, user_email: str = Depends(require_auth)):
+    valid = ["draft", "scheduled", "posted"]
+    if body.status not in valid:
+        raise HTTPException(400, f"Invalid status. Must be one of: {valid}")
+    post = get_reddit_post(post_id)
+    if not post:
+        raise HTTPException(404, "Reddit post not found")
+    _change_re_status(post_id, body.status, scheduled_at=body.scheduled_at, post_url=body.post_url)
+    log_reddit_audit(post_id, user_email, "status_changed", {"from": post.get("status"), "to": body.status})
+    return {"ok": True}
+
+
+@app.delete("/api/reddit-posts/{post_id}")
+def api_delete_reddit_post(post_id: int, user_email: str = Depends(require_auth)):
+    post = get_reddit_post(post_id)
+    if not post:
+        raise HTTPException(404, "Reddit post not found")
+    log_reddit_audit(post_id, user_email, "deleted", {"content_preview": (post.get("content") or "")[:60]})
+    delete_reddit_post(post_id)
+    return {"ok": True}
+
+
+@app.post("/api/reddit-posts/bulk-delete")
+def api_bulk_delete_reddit_posts(body: RedditBulkDeleteRequest, user_email: str = Depends(require_auth)):
+    deleted = []
+    for pid in body.ids:
+        post = get_reddit_post(pid)
+        if post:
+            log_reddit_audit(pid, user_email, "deleted", {"content_preview": (post.get("content") or "")[:60]})
+            delete_reddit_post(pid)
+            deleted.append(pid)
+    return {"deleted": deleted}
+
+
+@app.get("/api/reddit-posts/{post_id}/audit-log")
+def api_get_reddit_audit_log(post_id: int, _: str = Depends(require_auth)):
+    return get_reddit_audit_log(post_id)
+
+
+@app.post("/api/reddit-posts/generate")
+def api_generate_reddit_post(body: GenerateRedditPostRequest, _: str = Depends(require_auth)):
+    """Generate a Reddit OP + HitPay reply. Grounds on a real blog post when
+    source_blog_post_id is given; otherwise uses topic_hint as the seed."""
+    from src.reddit_generator import generate_reddit_post
+    if body.source_blog_post_id:
+        post = get_post(body.source_blog_post_id)
+        if not post:
+            raise HTTPException(404, "Source blog post not found")
+    else:
+        hint = (body.topic_hint or "").strip()
+        if not hint:
+            raise HTTPException(422, "Provide a topic_hint or a source_blog_post_id")
+        post = {"title": hint, "keyword": hint, "content": hint,
+                "country": body.market or "", "brand": body.brand}
+    try:
+        result = generate_reddit_post(post, market=body.market or None, brand=body.brand)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    except Exception as e:
+        if "overloaded_error" in str(e):
+            raise HTTPException(503, "Claude API is busy right now — please try again in a few seconds")
+        raise HTTPException(500, f"Generation error: {e}")
+    return result
+
+
 # ── Repurpose for Social ─────────────────────────────────────────────────────
 
 from src.repurposer import repurpose_for_platform, _cap_tweet, _cap_tweet_post_url, _move_url_to_reply, repurpose_post_as_thread, repurpose_edm
@@ -1831,7 +2015,7 @@ def api_repurpose_to_x_drafts(post_id: int, body: RepurposeToXRequest,
 
 @app.get("/api/posts/{post_id}/social-posts")
 def api_get_social_posts(post_id: int, user_email: str = Depends(require_auth)):
-    """Return all X, Threads, and LinkedIn drafts linked to a blog post."""
+    """Return all X, Threads, LinkedIn, and Reddit drafts linked to a blog post."""
     def safe(fn, *args):
         try:
             return fn(*args)
@@ -1841,15 +2025,53 @@ def api_get_social_posts(post_id: int, user_email: str = Depends(require_auth)):
         "x": safe(get_x_posts_by_blog_post_id, post_id),
         "threads": safe(get_threads_posts_by_blog_post_id, post_id),
         "linkedin": safe(get_linkedin_posts_by_blog_post_id, post_id),
+        "reddit": safe(get_reddit_posts_by_blog_post_id, post_id),
     }
+
+
+@app.post("/api/posts/{post_id}/repurpose-reddit")
+def api_repurpose_reddit(post_id: int, user_email: str = Depends(require_auth)):
+    """Generate a single Reddit draft (merchant-voice OP + HitPay reply) from a
+    blog post, save it linked to the post, and return its id."""
+    from src.reddit_generator import generate_reddit_post
+    post = get_post(post_id)
+    if not post:
+        raise HTTPException(404, "Post not found")
+    market = (post.get("country") or "SG") or "SG"
+    brand = post.get("brand", "hitpay")
+    try:
+        result = generate_reddit_post(post, market=market, brand=brand)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    except Exception as e:
+        if "overloaded_error" in str(e):
+            raise HTTPException(503, "Claude API is busy right now — please try again in a few seconds")
+        raise HTTPException(500, f"Generation error: {e}")
+    body = (result.get("content") or "").strip()
+    if not body:
+        raise HTTPException(422, "Reddit generation returned an empty OP body")
+    reddit_id = create_reddit_post(
+        content=body,
+        title=result.get("title"),
+        subreddit=result.get("subreddit"),
+        reply_comment=result.get("reply_comment"),
+        market=market,
+        editor_email=user_email,
+        source_blog_post_id=post_id,
+        brand=brand,
+    )
+    log_reddit_audit(reddit_id, user_email, "created", {"source": "repurpose-reddit"})
+    log_audit(post_id, user_email, "repurposed", {"platform": "reddit", "reddit_id": reddit_id})
+    return {"ok": True, "reddit_id": reddit_id}
 
 
 @app.post("/api/posts/{post_id}/repurpose-all")
 def api_repurpose_all(post_id: int, user_email: str = Depends(require_auth)):
-    """Generate X, Threads, and LinkedIn drafts from a blog post in parallel."""
+    """Generate X, Threads, LinkedIn, and Reddit drafts from a blog post in parallel."""
     import concurrent.futures
     from src.threads_thought_leadership import generate_threads_story
     from src.linkedin_generator import generate_linkedin_post as _gen_li
+    from src.reddit_generator import generate_reddit_post as _gen_reddit
 
     post = get_post(post_id)
     if not post:
@@ -1905,12 +2127,31 @@ def api_repurpose_all(post_id: int, user_email: str = Depends(require_auth)):
         log_linkedin_audit(lid, user_email, "created", {"source": "repurpose-all"})
         return lid
 
+    def gen_reddit():
+        result = _gen_reddit(post, market=market, brand=brand)
+        body = (result.get("content") or "").strip()
+        if not body:
+            raise ValueError("generate_reddit_post returned empty OP body")
+        rid = create_reddit_post(
+            content=body,
+            title=result.get("title"),
+            subreddit=result.get("subreddit"),
+            reply_comment=result.get("reply_comment"),
+            market=market,
+            editor_email=user_email,
+            source_blog_post_id=post_id,
+            brand=brand,
+        )
+        log_reddit_audit(rid, user_email, "created", {"source": "repurpose-all"})
+        return rid
+
     errors = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         futures = {
             "x": executor.submit(gen_x),
             "threads": executor.submit(gen_threads),
             "linkedin": executor.submit(gen_linkedin),
+            "reddit": executor.submit(gen_reddit),
         }
         results = {}
         for key, future in futures.items():
@@ -1924,6 +2165,7 @@ def api_repurpose_all(post_id: int, user_email: str = Depends(require_auth)):
         "x_id": results.get("x"),
         "threads_id": results.get("threads"),
         "linkedin_id": results.get("linkedin"),
+        "reddit_id": results.get("reddit"),
         "errors": errors or None,
     })
 
@@ -1933,6 +2175,7 @@ def api_repurpose_all(post_id: int, user_email: str = Depends(require_auth)):
             "x_id": results.get("x"),
             "threads_id": results.get("threads"),
             "linkedin_id": results.get("linkedin"),
+            "reddit_id": results.get("reddit"),
             "errors": errors,
         }
     return {
@@ -1940,6 +2183,7 @@ def api_repurpose_all(post_id: int, user_email: str = Depends(require_auth)):
         "x_id": results["x"],
         "threads_id": results["threads"],
         "linkedin_id": results["linkedin"],
+        "reddit_id": results["reddit"],
     }
 
 
@@ -1948,7 +2192,7 @@ class LaunchBundleRequest(BaseModel):
     market: str | None = None
     topic: str | None = None      # optional headline/keyword hint
     brand: str = "hitpay"
-    channels: list[str] = ["blog", "x", "threads", "linkedin"]
+    channels: list[str] = ["blog", "x", "threads", "linkedin", "reddit"]
 
 
 @app.post("/api/generate-launch-bundle")
@@ -1968,6 +2212,7 @@ async def api_generate_launch_bundle(body: LaunchBundleRequest, user_email: str 
     want_x = "x" in channels
     want_threads = "threads" in channels
     want_linkedin = "linkedin" in channels
+    want_reddit = "reddit" in channels
 
     # Keyword hint drives research relevance + the topic angle; fall back to the
     # launch's first non-empty line (its headline).
@@ -1988,7 +2233,7 @@ async def api_generate_launch_bundle(body: LaunchBundleRequest, user_email: str 
             if not launch:
                 yield f"data: {json.dumps({'type': 'error', 'message': 'Launch content is empty'})}\n\n"
                 return
-            if not (want_blog or want_x or want_threads or want_linkedin):
+            if not (want_blog or want_x or want_threads or want_linkedin or want_reddit):
                 yield f"data: {json.dumps({'type': 'error', 'message': 'Select at least one channel'})}\n\n"
                 return
 
@@ -2024,7 +2269,7 @@ async def api_generate_launch_bundle(body: LaunchBundleRequest, user_email: str 
                 log_audit(blog_id, user_email, "created", {"source": "product-launch", "topic": topic})
                 yield f"data: {json.dumps({'type': 'status', 'message': 'Blog ready.', 'blog_id': blog_id, 'title': blog_title})}\n\n"
 
-            if want_x or want_threads or want_linkedin:
+            if want_x or want_threads or want_linkedin or want_reddit:
                 yield f"data: {json.dumps({'type': 'status', 'message': 'Generating social drafts…'})}\n\n"
 
             def _choice_tweets(choice):
@@ -2084,13 +2329,35 @@ async def api_generate_launch_bundle(body: LaunchBundleRequest, user_email: str 
                     out["error"] = str(exc)
                 return out
 
-            results = {"x_id": None, "threads_id": None, "linkedin_id": None}
+            def do_reddit():
+                out = {"kind": "reddit", "reddit_id": None, "error": None}
+                try:
+                    from src.reddit_generator import generate_reddit_post
+                    seed = {"title": topic, "keyword": topic, "content": launch,
+                            "country": market or "", "brand": brand}
+                    res = generate_reddit_post(seed, market=market, brand=brand)
+                    body_op = (res.get("content") or "").strip()
+                    if body_op:
+                        rid = create_reddit_post(
+                            content=body_op, title=res.get("title"), subreddit=res.get("subreddit"),
+                            reply_comment=res.get("reply_comment"), market=market, editor_email=user_email,
+                            source_blog_post_id=blog_id, brand=brand, source="product_launch",
+                        )
+                        log_reddit_audit(rid, user_email, "created", {"source": "product-launch"})
+                        out["reddit_id"] = rid
+                except Exception as exc:
+                    out["error"] = str(exc)
+                return out
+
+            results = {"x_id": None, "threads_id": None, "linkedin_id": None, "reddit_id": None}
             errors = {}
             futures = []
             if want_x or want_threads:
                 futures.append(loop.run_in_executor(None, do_x_threads))
             if want_linkedin:
                 futures.append(loop.run_in_executor(None, do_linkedin))
+            if want_reddit:
+                futures.append(loop.run_in_executor(None, do_reddit))
 
             for fut in asyncio.as_completed(futures):
                 res = await fut
@@ -2103,6 +2370,12 @@ async def api_generate_launch_bundle(body: LaunchBundleRequest, user_email: str 
                         made = [n for n, k in (("X", "x_id"), ("Threads", "threads_id")) if res.get(k)]
                         if made:
                             yield f"data: {json.dumps({'type': 'status', 'message': ' & '.join(made) + ' draft ready'})}\n\n"
+                elif res.get("kind") == "reddit":
+                    results["reddit_id"] = res.get("reddit_id")
+                    if res.get("error"):
+                        errors["reddit"] = res["error"]
+                    else:
+                        yield f"data: {json.dumps({'type': 'status', 'message': 'Reddit draft ready'})}\n\n"
                 else:
                     results["linkedin_id"] = res.get("linkedin_id")
                     if res.get("error"):
@@ -2113,13 +2386,15 @@ async def api_generate_launch_bundle(body: LaunchBundleRequest, user_email: str 
             if blog_id:
                 log_audit(blog_id, user_email, "launch_bundle", {
                     "x_id": results["x_id"], "threads_id": results["threads_id"],
-                    "linkedin_id": results["linkedin_id"], "errors": errors or None,
+                    "linkedin_id": results["linkedin_id"], "reddit_id": results["reddit_id"],
+                    "errors": errors or None,
                 })
 
             done_payload = {
                 "type": "done", "blog_id": blog_id, "title": blog_title or "Product launch drafts",
                 "x_id": results["x_id"], "threads_id": results["threads_id"],
-                "linkedin_id": results["linkedin_id"], "errors": errors or None,
+                "linkedin_id": results["linkedin_id"], "reddit_id": results["reddit_id"],
+                "errors": errors or None,
             }
             if link_warnings:
                 done_payload["link_warnings"] = link_warnings
@@ -2283,6 +2558,38 @@ def api_generate_launch_linkedin(body: LaunchStepRequest, user_email: str = Depe
         )
         log_linkedin_audit(linkedin_id, user_email, "created", {"source": "product-launch"})
     return {"linkedin_id": linkedin_id}
+
+
+@app.post("/api/generate-launch/reddit")
+def api_generate_launch_reddit(body: LaunchStepRequest, user_email: str = Depends(require_auth)):
+    from src.reddit_generator import generate_reddit_post
+    launch = (body.launch_content or "").strip()
+    if not launch:
+        raise HTTPException(422, "Launch content is empty")
+    brand = body.brand or "hitpay"
+    market = body.market or None
+    topic = (body.topic or "").strip() or next(
+        (ln.strip() for ln in launch.splitlines() if ln.strip()), "product launch"
+    )[:150]
+
+    seed = {"title": topic, "keyword": topic, "content": launch, "country": market or "", "brand": brand}
+    try:
+        res = generate_reddit_post(seed, market=market, brand=brand)
+    except Exception as e:
+        if "overloaded_error" in str(e):
+            raise HTTPException(503, "Claude API is busy right now — please try again in a few seconds")
+        raise HTTPException(500, f"Generation error: {e}")
+
+    body_op = (res.get("content") or "").strip()
+    reddit_id = None
+    if body_op:
+        reddit_id = create_reddit_post(
+            content=body_op, title=res.get("title"), subreddit=res.get("subreddit"),
+            reply_comment=res.get("reply_comment"), market=market, editor_email=user_email,
+            source_blog_post_id=body.blog_id, brand=brand, source="product_launch",
+        )
+        log_reddit_audit(reddit_id, user_email, "created", {"source": "product-launch"})
+    return {"reddit_id": reddit_id}
 
 
 # ── Automation ────────────────────────────────────────────────────────────────

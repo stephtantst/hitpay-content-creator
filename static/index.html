@@ -2265,6 +2265,10 @@
     <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="18" height="18"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
     <span class="platform-btn-label">LinkedIn</span>
   </button>
+  <button class="platform-btn" id="platformBtnReddit" onclick="switchPlatform('reddit')" title="Reddit">
+    <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="18" height="18"><path d="M12 0C5.373 0 0 5.373 0 12c0 3.314 1.343 6.314 3.515 8.485l-2.286 2.286C.775 23.225 1.097 24 1.738 24H12c6.627 0 12-5.373 12-12S18.627 0 12 0zm4.388 12.834a1.32 1.32 0 0 1-.786.786c.02.147.03.298.03.451 0 2.309-2.688 4.181-6.004 4.181s-6.004-1.872-6.004-4.181c0-.156.01-.31.031-.461a1.324 1.324 0 1 1 1.212-2.279c.895-.638 2.108-1.05 3.454-1.107l.66-3.108a.281.281 0 0 1 .333-.216l2.195.467a.937.937 0 1 1-.116.594l-1.963-.418-.59 2.789c1.326.064 2.521.475 3.404 1.107a1.324 1.324 0 1 1 .484 2.116zm-6.5.958a.937.937 0 1 0 0-1.874.937.937 0 0 0 0 1.874zm4.223 0a.937.937 0 1 0 0-1.874.937.937 0 0 0 0 1.874zm-.156 1.617a.28.28 0 0 0-.397.007c-.464.474-1.43.642-2.058.642-.628 0-1.594-.168-2.058-.642a.28.28 0 1 0-.404.39c.586.598 1.703.798 2.462.798.759 0 1.876-.2 2.462-.798a.28.28 0 0 0-.007-.397z"/></svg>
+    <span class="platform-btn-label">Reddit</span>
+  </button>
   <button class="platform-btn" id="platformBtnYouTube" onclick="switchPlatform('youtube')" title="YouTube Descriptions">
     <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="18" height="18"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
     <span class="platform-btn-label">YouTube</span>
@@ -2588,6 +2592,9 @@
         </button>
         <button class="btn btn-secondary" id="repurposeBtn" onclick="openRepurposeModal()">
           𝕏  Repurpose for X
+        </button>
+        <button class="btn btn-secondary" id="repurposeRedditBtn" onclick="repurposeReddit()">
+          👽  Repurpose for Reddit
         </button>
         <button class="btn btn-secondary" id="repurposeAllBtn" onclick="repurposeAll()">
           ↗  Repurpose All
@@ -3319,6 +3326,245 @@
 
 </div><!-- /linkedinPlatform -->
 
+<div id="redditPlatform" style="display:none; flex:1; overflow:hidden; flex-direction:column;">
+
+  <div class="x-platform-nav">
+    <div class="x-platform-nav-tabs">
+      <button class="nav-btn active" id="reNavOverview" onclick="switchReView('overview')">Overview</button>
+      <button class="nav-btn" id="reNavEditor" onclick="switchReView('editor')">Editor</button>
+    </div>
+    <div style="flex:1"></div>
+    <button class="btn-new-post" onclick="openCreateReModal()">＋ New Post</button>
+  </div>
+
+  <!-- Reddit Overview Pane -->
+  <div id="reOverviewPane" style="display:flex; flex:1; overflow:hidden; flex-direction:column;">
+    <div class="x-ov-toolbar">
+      <div class="x-ov-toolbar-left">
+        <div class="filter-chips" id="reOverviewChips">
+          <button class="chip active" data-status="all" onclick="setReOverviewFilter(this)">All <span class="chip-count" id="reovchip-all">0</span></button>
+          <button class="chip" data-status="draft" onclick="setReOverviewFilter(this)">📝 Draft <span class="chip-count" id="reovchip-draft">0</span></button>
+          <button class="chip" data-status="scheduled" onclick="setReOverviewFilter(this)">🕐 Scheduled <span class="chip-count" id="reovchip-scheduled">0</span></button>
+          <button class="chip" data-status="posted" onclick="setReOverviewFilter(this)">✅ Posted <span class="chip-count" id="reovchip-posted">0</span></button>
+        </div>
+      </div>
+      <div class="x-ov-toolbar-right">
+        <button class="btn btn-secondary" id="reBulkSelectToggle" style="font-size:12px;padding:5px 12px;" onclick="reToggleSelectMode()">☑ Select</button>
+        <div class="view-switch">
+          <button class="view-switch-btn" id="reOvsw-list" onclick="setReOverviewView('list')">☰ List</button>
+          <button class="view-switch-btn" id="reOvsw-board" onclick="setReOverviewView('board')">⊞ Board</button>
+          <button class="view-switch-btn active" id="reOvsw-cal" onclick="setReOverviewView('calendar')">&#9632; Cal</button>
+        </div>
+      </div>
+    </div>
+    <div class="x-ov-filters">
+      <input class="overview-search" id="reOvSearch" type="text" placeholder="🔍 Search posts…" oninput="renderReOverview()" />
+      <select class="filter-select" id="reOvMarket" onchange="renderReOverview()">
+        <option value="all">All Markets</option>
+        <option value="SG">🇸🇬 Singapore</option>
+        <option value="MY">🇲🇾 Malaysia</option>
+        <option value="PH">🇵🇭 Philippines</option>
+      </select>
+    </div>
+    <div class="x-ov-content">
+      <div id="reOverviewListView" style="display:none;">
+        <div id="reBulkBar" class="x-bulk-bar" style="display:none;">
+          <span id="reBulkCount">0 selected</span>
+          <button class="x-bulk-danger" onclick="reBulkDelete()">✕ Delete selected</button>
+          <button onclick="reClearSelection()">Clear</button>
+        </div>
+        <table class="posts-table">
+          <thead>
+            <tr>
+              <th class="x-cb-col" id="reCbHeaderCell" style="display:none;"><input type="checkbox" class="x-select-cb" id="reSelectAllCb" onchange="reToggleSelectAll(this.checked)"></th>
+              <th>Content</th>
+              <th style="width:90px;">Market</th>
+              <th style="width:120px;">Status</th>
+              <th style="width:100px;">Scheduled</th>
+              <th style="width:100px;">Created</th>
+              <th style="width:110px;">Editor</th>
+              <th style="width:70px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="reListBody"></tbody>
+        </table>
+      </div>
+      <div id="reOverviewBoardView" style="display:none;" class="board-wrap">
+        <div class="board-columns">
+          <div class="board-col" id="reBCol-draft">
+            <div class="board-col-header">📝 Draft <span class="board-col-count" id="reBCount-draft">0</span></div>
+            <div class="board-cards" id="reBCards-draft"></div>
+          </div>
+          <div class="board-col" id="reBCol-scheduled">
+            <div class="board-col-header">🕐 Scheduled <span class="board-col-count" id="reBCount-scheduled">0</span></div>
+            <div class="board-cards" id="reBCards-scheduled"></div>
+          </div>
+          <div class="board-col" id="reBCol-posted">
+            <div class="board-col-header">✅ Posted <span class="board-col-count" id="reBCount-posted">0</span></div>
+            <div class="board-cards" id="reBCards-posted"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Calendar View -->
+      <div id="reOverviewCalView" style="display:flex;" class="cal-wrap">
+        <div class="cal-draft-sidebar">
+          <div class="cal-draft-sidebar-header">
+            Unscheduled Drafts
+            <span class="cal-draft-count" id="reCalDraftCount">0</span>
+          </div>
+          <div class="cal-draft-list" id="reCalDraftList"></div>
+        </div>
+        <div class="cal-main">
+          <div class="cal-nav">
+            <button class="cal-nav-btn" onclick="calToday('re')">Today</button>
+            <button class="cal-nav-btn" onclick="calPrev('re')">&#8249;</button>
+            <button class="cal-nav-btn" onclick="calNext('re')">&#8250;</button>
+            <span class="cal-nav-label" id="reCalNavLabel"></span>
+            <div class="cal-nav-spacer"></div>
+            <div class="view-switch">
+              <button class="view-switch-btn active" id="reCalSw-month" onclick="setReCalViewMode('month')">Month</button>
+              <button class="view-switch-btn" id="reCalSw-week" onclick="setReCalViewMode('week')">Week</button>
+            </div>
+          </div>
+          <div class="cal-grid-wrap">
+            <div id="reCalMonthGrid" class="cal-month-grid"></div>
+            <div id="reCalWeekGrid" class="cal-week-grid" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /reOverviewPane -->
+
+  <!-- Reddit Editor Modal Backdrop -->
+  <div id="reEditorModalBackdrop" class="editor-modal-backdrop" style="display:none;" onclick="closeReEditorModal()"></div>
+
+  <!-- Reddit Editor Pane -->
+  <div id="reEditorPane" style="display:none; flex:1; overflow:hidden; flex-direction:column;">
+    <div class="x-toolbar">
+      <div class="x-toolbar-left">
+        <div class="x-status-chips" id="reStatusChips">
+          <button class="chip active" data-status="all" onclick="setReFilter(this)">All <span class="chip-count" id="rechip-all">0</span></button>
+          <button class="chip" data-status="draft" onclick="setReFilter(this)">📝 Draft <span class="chip-count" id="rechip-draft">0</span></button>
+          <button class="chip" data-status="scheduled" onclick="setReFilter(this)">🕐 Scheduled <span class="chip-count" id="rechip-scheduled">0</span></button>
+          <button class="chip" data-status="posted" onclick="setReFilter(this)">✅ Posted <span class="chip-count" id="rechip-posted">0</span></button>
+        </div>
+      </div>
+      <div class="x-toolbar-right">
+        <button class="editor-modal-close-btn" onclick="closeReEditorModal()" title="Close">✕</button>
+      </div>
+    </div>
+
+    <div class="x-layout">
+      <aside class="x-sidebar">
+        <div class="x-sidebar-top">
+          <input class="search-box" id="reSearchBox" type="text" placeholder="Search posts…" oninput="renderRePostList()" />
+        </div>
+        <div class="x-sidebar-bulk-bar" id="reSidebarBulkBar">
+          <span id="reSidebarBulkCount" style="font-size:12px;color:#fff;font-weight:600;flex:1;">0 selected</span>
+          <button class="x-bulk-danger" onclick="reBulkDelete()" style="margin-right:4px;">✕ Delete</button>
+          <button onclick="reClearSelection()">Clear</button>
+        </div>
+        <div class="x-status-tabs">
+          <button class="x-status-tab active" data-status="all" onclick="setReSidebarFilter(this)">All</button>
+          <button class="x-status-tab" data-status="draft" onclick="setReSidebarFilter(this)">Draft</button>
+          <button class="x-status-tab" data-status="scheduled" onclick="setReSidebarFilter(this)">Scheduled</button>
+          <button class="x-status-tab" data-status="posted" onclick="setReSidebarFilter(this)">Posted</button>
+        </div>
+        <div class="x-post-list" id="rePostList"></div>
+      </aside>
+
+      <main class="x-editor-area">
+        <div class="x-no-post" id="reNoPostState">
+          <div class="icon" style="font-size:28px;">
+            <svg viewBox="0 0 24 24" fill="#FF4500" xmlns="http://www.w3.org/2000/svg" width="34" height="34"><path d="M12 0C5.373 0 0 5.373 0 12c0 3.314 1.343 6.314 3.515 8.485l-2.286 2.286C.775 23.225 1.097 24 1.738 24H12c6.627 0 12-5.373 12-12S18.627 0 12 0zm4.388 12.834a1.32 1.32 0 0 1-.786.786c.02.147.03.298.03.451 0 2.309-2.688 4.181-6.004 4.181s-6.004-1.872-6.004-4.181c0-.156.01-.31.031-.461a1.324 1.324 0 1 1 1.212-2.279c.895-.638 2.108-1.05 3.454-1.107l.66-3.108a.281.281 0 0 1 .333-.216l2.195.467a.937.937 0 1 1-.116.594l-1.963-.418-.59 2.789c1.326.064 2.521.475 3.404 1.107a1.324 1.324 0 1 1 2.483.494zm-6.5.958a.937.937 0 1 0 0-1.874.937.937 0 0 0 0 1.874zm4.223 0a.937.937 0 1 0 0-1.874.937.937 0 0 0 0 1.874zm-.156 1.617a.28.28 0 0 0-.397.007c-.464.474-1.43.642-2.058.642-.628 0-1.594-.168-2.058-.642a.28.28 0 1 0-.404.39c.586.598 1.703.798 2.462.798.759 0 1.876-.2 2.462-.798a.28.28 0 0 0-.007-.397z"/></svg>
+          </div>
+          <p>Select a post or create a new one</p>
+          <button class="btn btn-primary" onclick="openCreateReModal()">＋ New Post</button>
+        </div>
+        <div id="reEditorContent" style="display:none; flex:1; flex-direction:column; overflow:auto; padding:24px; gap:12px;">
+          <div id="reSingleMode">
+            <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:10px;">
+              <div style="flex:0 0 200px;">
+                <div class="field-label">Subreddit</div>
+                <input class="field-input" id="reSubredditInput" type="text" placeholder="r/HitPay_official" oninput="reMarkDirty()" />
+              </div>
+              <div style="flex:1;">
+                <div class="x-editor-header" style="margin-bottom:4px;">
+                  <span>OP title <span style="font-weight:400;color:var(--text-dim);">— merchant voice, no branding</span></span>
+                  <span class="x-char-count" id="reTitleCharCount">0 / 300</span>
+                </div>
+                <input class="field-input" id="reTitleInput" type="text" placeholder="anyone else drowning in IG DMs asking how to pay?" oninput="reMarkDirty(); updateReCharCount()" />
+              </div>
+            </div>
+            <div class="x-editor-header" style="margin-bottom:6px;">
+              <span>OP body <span style="font-weight:400;color:var(--text-dim);">— merchant voice, no HitPay branding</span></span>
+              <span class="x-char-count" id="reCharCount">0</span>
+            </div>
+            <textarea class="x-textarea" id="reContentInput" placeholder="Write the post as a real merchant in this market. No HitPay branding, honest limitation, stands alone…" oninput="reMarkDirty(); updateReCharCount(); autoResizeTa(this)" style="min-height:150px;"></textarea>
+            <div class="x-editor-header" style="margin:14px 0 6px;">
+              <span>HitPay reply comment <span style="font-weight:400;color:var(--text-dim);">— verified-account voice, plain &amp; honest</span></span>
+              <span class="x-char-count" id="reReplyCharCount">0</span>
+            </div>
+            <textarea class="x-textarea" id="reReplyInput" placeholder="A separate reply from the verified HitPay account. Plain, helpful, localized, honest about limits…" oninput="reMarkDirty(); updateReCharCount(); autoResizeTa(this)" style="min-height:120px;border-left:3px solid #FF4500;"></textarea>
+          </div>
+        </div>
+      </main>
+
+      <aside class="x-meta-panel" id="reMetaPanel" style="display:none;">
+        <div class="meta-section">
+          <div class="meta-section-title">Status</div>
+          <div id="reStatusBadge" class="x-status-badge draft">📝 Draft</div>
+          <select class="status-select" id="reStatusSelect" onchange="handleReStatusChange(this.value)">
+            <option value="draft">📝 Draft</option>
+            <option value="scheduled">🕐 Scheduled</option>
+            <option value="posted">✅ Posted</option>
+          </select>
+          <div id="reScheduledSection" style="display:none; margin-top:10px;">
+            <div class="field-label">Scheduled date &amp; time</div>
+            <input class="field-input" id="reScheduledAt" type="datetime-local" oninput="reMarkDirty()" />
+          </div>
+          <div id="rePostedSection" style="display:none; margin-top:10px;">
+            <div class="field-label">Post URL (optional)</div>
+            <input class="field-input" id="rePostUrl" type="url" placeholder="https://www.reddit.com/r/HitPay_official/comments/…" oninput="reMarkDirty()" />
+          </div>
+        </div>
+        <div class="meta-section">
+          <div class="meta-section-title">Market</div>
+          <select class="field-input" id="reMarket" onchange="reMarkDirty()" style="cursor:pointer;">
+            <option value="">All Markets</option>
+            <option value="SG">🇸🇬 Singapore</option>
+            <option value="MY">🇲🇾 Malaysia</option>
+            <option value="PH">🇵🇭 Philippines</option>
+          </select>
+        </div>
+        <div class="meta-section">
+          <div class="meta-section-title">Actions</div>
+          <div class="action-buttons">
+            <button class="btn btn-primary" id="reSaveBtn" onclick="saveRePost()">↑ Save Changes</button>
+            <button class="btn btn-danger" onclick="deleteRePost()">✕ Delete Post</button>
+          </div>
+        </div>
+        <div class="meta-section">
+          <button class="btn" onclick="navigator.clipboard.writeText(currentRePost?.content || '').then(() => showToast('Copied to clipboard', 'success'))" style="width:100%;font-size:13px;">⎘ Copy to Clipboard</button>
+        </div>
+        <div class="meta-section" id="reAuditSection" style="display:none;">
+          <div class="meta-section-title">History</div>
+          <div id="reAuditLog"></div>
+        </div>
+
+        <div class="meta-section" id="reSourcePostSection" style="display:none;">
+          <div class="meta-section-title">Source Blog Post</div>
+          <a href="#" id="reSourcePostLink" onclick="event.preventDefault();switchToSourcePost('reddit')" style="font-size:13px;color:var(--accent);text-decoration:none;word-break:break-word;">
+            <span id="reSourcePostTitle"></span>
+          </a>
+        </div>
+
+      </aside>
+    </div>
+  </div><!-- /reEditorPane -->
+
+</div><!-- /redditPlatform -->
+
 <!-- YouTube Description Platform -->
 <div id="youtubePlatform" style="display:none; flex:1; overflow:hidden; flex-direction:column;">
   <div class="blog-platform-nav">
@@ -3756,6 +4002,7 @@
           <label class="launch-channel"><input type="checkbox" id="lc-x" checked> 𝕏 X</label>
           <label class="launch-channel"><input type="checkbox" id="lc-threads" checked> 🧵 Threads</label>
           <label class="launch-channel"><input type="checkbox" id="lc-linkedin" checked> 💼 LinkedIn</label>
+          <label class="launch-channel"><input type="checkbox" id="lc-reddit" checked> 👽 Reddit</label>
         </div>
         <div class="edm-input-footer">
           <input id="launchTopic" class="filter-select" style="font-size:12px;padding:5px 8px;flex:1;min-width:0;" placeholder="Topic / headline (optional)" />
@@ -4034,6 +4281,75 @@
         <div style="display:flex;gap:8px;">
           <button class="btn" onclick="runLiPostGenerate()" style="flex:1;font-size:13px;">Regenerate</button>
           <button class="btn btn-primary" onclick="useLiGeneratedPost()" style="flex:2;font-size:13px;">Use this post →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="createReModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">New Reddit Post</div>
+    <div style="display:flex;gap:6px;margin-bottom:16px;">
+      <button id="createReTabWrite" class="btn" style="flex:1;font-size:13px;" onclick="switchCreateReTab('write')">✏️ Write</button>
+      <button id="createReTabGenerate" class="btn btn-primary" style="flex:1;font-size:13px;" onclick="switchCreateReTab('generate')">✨ Generate post</button>
+    </div>
+    <!-- Write mode -->
+    <div id="createReWritePane">
+      <label class="modal-field-label">Subreddit</label>
+      <input class="modal-input" id="createReSubreddit" type="text" placeholder="r/HitPay_official" style="margin-bottom:12px;" />
+      <label class="modal-field-label">OP title <span style="font-weight:400;color:var(--text-dim)">(merchant voice, no branding)</span></label>
+      <input class="modal-input" id="createReTitle" type="text" placeholder="anyone else drowning in IG DMs asking how to pay?" style="margin-bottom:12px;" />
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label class="modal-field-label" style="margin-bottom:0;">OP body <span style="font-weight:400;color:var(--text-dim)">(no HitPay branding)</span></label>
+        <span class="x-char-count" id="createReCharCount">0</span>
+      </div>
+      <textarea class="modal-input" id="createReContent" rows="6"
+        placeholder="Write the post as a real merchant. No HitPay branding, honest limitation, stands alone…"
+        oninput="updateCreateReCharCount()" style="resize:vertical;"></textarea>
+      <label class="modal-field-label" style="margin-top:12px;">HitPay reply comment <span style="font-weight:400;color:var(--text-dim)">(verified-account voice)</span></label>
+      <textarea class="modal-input" id="createReReply" rows="4"
+        placeholder="Separate reply from the verified HitPay account. Plain, honest, localized…"
+        style="resize:vertical;border-left:3px solid #FF4500;"></textarea>
+      <label class="modal-field-label">Market</label>
+      <select class="modal-select" id="createReMarket">
+        <option value="">All Markets</option>
+        <option value="SG">🇸🇬 Singapore</option>
+        <option value="MY">🇲🇾 Malaysia</option>
+        <option value="PH">🇵🇭 Philippines</option>
+      </select>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" onclick="closeCreateReModal()">Cancel</button>
+        <button class="btn btn-primary" id="createReBtn" onclick="submitCreateRePost()">Create Post</button>
+      </div>
+    </div>
+    <!-- Generate mode -->
+    <div id="createReGeneratePane" style="display:none;">
+      <label class="modal-field-label">Topic hint <span style="font-weight:400;color:var(--text-dim)">(optional)</span></label>
+      <input class="modal-input" id="createReTopicHint" type="text"
+        placeholder="e.g. PayNow adoption, payment fees, cross-border payments…"
+        style="margin-bottom:12px;" />
+      <label class="modal-field-label">Market</label>
+      <select class="modal-select" id="createReGenerateMarket" style="margin-bottom:16px;">
+        <option value="">All Markets (SEA)</option>
+        <option value="SG">🇸🇬 Singapore</option>
+        <option value="MY">🇲🇾 Malaysia</option>
+        <option value="PH">🇵🇭 Philippines</option>
+      </select>
+      <div id="createReGenerateActions" style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="btn btn-cancel" onclick="closeCreateReModal()" style="flex:1;">Cancel</button>
+        <button class="btn btn-primary" id="createReGenerateBtn" onclick="runRePostGenerate()" style="flex:2;">Generate post</button>
+      </div>
+      <div id="createReGenerateLoading" style="display:none;text-align:center;padding:24px 0;color:var(--text-dim);font-size:13px;">
+        <div style="margin-bottom:8px;">Generating post…</div>
+        <div style="font-size:11px;">This usually takes 5–10 seconds</div>
+      </div>
+      <div id="createReGenerateResult" style="display:none;">
+        <div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;" id="createReGenerateTopic"></div>
+        <div id="createReGeneratePost" style="background:var(--bg-alt,#f7f7f7);border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.6;white-space:pre-wrap;max-height:320px;overflow-y:auto;margin-bottom:14px;"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="runRePostGenerate()" style="flex:1;font-size:13px;">Regenerate</button>
+          <button class="btn btn-primary" onclick="useReGeneratedPost()" style="flex:2;font-size:13px;">Use this post →</button>
         </div>
       </div>
     </div>
@@ -6229,11 +6545,12 @@ function renderSocialPostsForBlog(data) {
     ...(data.x || []).map(p => ({...p, _plat: 'x'})),
     ...(data.threads || []).map(p => ({...p, _plat: 'threads'})),
     ...(data.linkedin || []).map(p => ({...p, _plat: 'linkedin'})),
+    ...(data.reddit || []).map(p => ({...p, _plat: 'reddit'})),
   ];
   if (!all.length) { section.style.display = 'none'; return; }
   section.style.display = '';
-  const colors = { x: '#1D9BF0', threads: '#8B5CF6', linkedin: '#0A66C2' };
-  const labels = { x: '𝕏', threads: 'Th', linkedin: 'in' };
+  const colors = { x: '#1D9BF0', threads: '#8B5CF6', linkedin: '#0A66C2', reddit: '#FF4500' };
+  const labels = { x: '𝕏', threads: 'Th', linkedin: 'in', reddit: 'Re' };
   list.innerHTML = all.map(p => {
     const preview = escHtml((p.content || '').slice(0, 60));
     const statusLabel = p.status || 'draft';
@@ -6257,7 +6574,7 @@ async function repurposeAll() {
       const failed = Object.keys(data.errors).join(', ');
       showToast(`Partial: ${failed} failed — check console`, 'error');
     } else {
-      showToast('Created drafts for X, Threads, and LinkedIn', 'success');
+      showToast('Created drafts for X, Threads, LinkedIn, and Reddit', 'success');
     }
     await loadSocialPostsForBlog(currentPost.id);
   } catch (e) {
@@ -6267,9 +6584,33 @@ async function repurposeAll() {
   }
 }
 
+async function repurposeReddit() {
+  if (!currentPost) return;
+  const btn = document.getElementById('repurposeRedditBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '👽  Generating…'; }
+  try {
+    const res = await fetch(`/api/posts/${currentPost.id}/repurpose-reddit`, { method: 'POST' });
+    if (!res.ok) {
+      let msg = 'Reddit repurpose failed — try again';
+      try { const e = await res.json(); if (e.detail) msg = e.detail; } catch (_) {}
+      showToast(msg, 'error');
+      return;
+    }
+    const data = await res.json();
+    await loadSocialPostsForBlog(currentPost.id);
+    showToast('Reddit draft created — opening editor', 'success');
+    switchPlatform('reddit');
+    openRePostFromOverview(data.reddit_id);
+  } catch (e) {
+    showToast('Reddit repurpose failed', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '👽  Repurpose for Reddit'; }
+  }
+}
+
 async function loadSourcePostForSocialPost(platform, sourceId) {
   if (!sourceId) {
-    const pfx = { x: 'x', threads: 'thr', linkedin: 'li' }[platform];
+    const pfx = { x: 'x', threads: 'thr', linkedin: 'li', reddit: 're' }[platform];
     const s = document.getElementById(`${pfx}SourcePostSection`);
     if (s) s.style.display = 'none';
     return;
@@ -6278,7 +6619,7 @@ async function loadSourcePostForSocialPost(platform, sourceId) {
     const res = await fetch(`/api/posts/${sourceId}`);
     if (!res.ok) return;
     const post = await res.json();
-    const pfx = { x: 'x', threads: 'thr', linkedin: 'li' }[platform];
+    const pfx = { x: 'x', threads: 'thr', linkedin: 'li', reddit: 're' }[platform];
     const section = document.getElementById(`${pfx}SourcePostSection`);
     const titleEl = document.getElementById(`${pfx}SourcePostTitle`);
     if (section && titleEl && post && post.title) {
@@ -6290,7 +6631,7 @@ async function loadSourcePostForSocialPost(platform, sourceId) {
 }
 
 function switchToSourcePost(platform) {
-  const pfx = { x: 'x', threads: 'thr', linkedin: 'li' }[platform];
+  const pfx = { x: 'x', threads: 'thr', linkedin: 'li', reddit: 're' }[platform];
   const titleEl = document.getElementById(`${pfx}SourcePostTitle`);
   const id = titleEl && titleEl.dataset.postId ? parseInt(titleEl.dataset.postId, 10) : null;
   if (!id) return;
@@ -6299,7 +6640,7 @@ function switchToSourcePost(platform) {
 }
 
 function openSocialPostFromBlogView(platform, id) {
-  const platIds = { x: 'xPlatform', threads: 'threadsPlatform', linkedin: 'linkedinPlatform' };
+  const platIds = { x: 'xPlatform', threads: 'threadsPlatform', linkedin: 'linkedinPlatform', reddit: 'redditPlatform' };
   const platDiv = document.getElementById(platIds[platform]);
   // Temporarily un-hide the platform div so the position:fixed modal pane can render.
   // The backdrop (z-index:400) covers the overview content behind it.
@@ -7640,23 +7981,27 @@ function switchPlatform(platform) {
   const isX = platform === 'x';
   const isThreads = platform === 'threads';
   const isLinkedIn = platform === 'linkedin';
+  const isReddit = platform === 'reddit';
   const isSocialCal = platform === 'socialcal';
   const isYouTube = platform === 'youtube';
   document.getElementById('blogPlatform').style.display       = isBlog      ? 'flex' : 'none';
   document.getElementById('xPlatform').style.display          = isX         ? 'flex' : 'none';
   document.getElementById('threadsPlatform').style.display    = isThreads   ? 'flex' : 'none';
   document.getElementById('linkedinPlatform').style.display   = isLinkedIn  ? 'flex' : 'none';
+  document.getElementById('redditPlatform').style.display     = isReddit    ? 'flex' : 'none';
   document.getElementById('socialCalPlatform').style.display  = isSocialCal ? 'flex' : 'none';
   document.getElementById('youtubePlatform').style.display    = isYouTube   ? 'flex' : 'none';
   document.getElementById('platformBtnBlog').classList.toggle('active', isBlog);
   document.getElementById('platformBtnX').classList.toggle('active', isX);
   document.getElementById('platformBtnThreads').classList.toggle('active', isThreads);
   document.getElementById('platformBtnLinkedIn').classList.toggle('active', isLinkedIn);
+  document.getElementById('platformBtnReddit').classList.toggle('active', isReddit);
   document.getElementById('platformBtnSocialCal').classList.toggle('active', isSocialCal);
   document.getElementById('platformBtnYouTube').classList.toggle('active', isYouTube);
   if (isX) { loadXPosts(); switchXView('overview'); }
   if (isThreads) { loadThrPosts(); switchThrView('overview'); }
   if (isLinkedIn) { loadLiPosts(); switchLiView('overview'); }
+  if (isReddit) { loadRePosts(); switchReView('overview'); }
   if (isSocialCal) { loadSocialCalPosts(); }
   if (isYouTube) { ytLoadHistory(); }
 }
@@ -9961,6 +10306,581 @@ async function submitCreateLiPost() {
   showToast('Post created');
 }
 
+// ── Reddit Posts ────────────────────────────────────────────────────────────
+let rePosts = [];
+let currentRePost = null;
+let reStatusFilter = 'all';
+let reIsDirty = false;
+let reSelectedIds = new Set();
+let reSelectMode = false;
+let reCurrentView = 'overview';
+let reOverviewViewMode = 'calendar';
+
+async function loadRePosts() {
+  const res = await fetch(`/api/reddit-posts?brand=${activeBrand}`);
+  if (!res.ok) return;
+  rePosts = await res.json();
+  renderRePostList();
+  renderReChipCounts();
+  if (reCurrentView === 'overview') renderReOverview();
+}
+
+function switchReView(view) {
+  reCurrentView = view;
+  // If editor pane is open as a modal, close it cleanly before switching view
+  const rePane = document.getElementById('reEditorPane');
+  if (view === 'overview' && rePane && rePane.classList.contains('as-modal')) {
+    closeReEditorModal();
+    return;
+  }
+  document.getElementById('reOverviewPane').style.display = view === 'overview' ? 'flex' : 'none';
+  rePane.style.display   = view === 'editor'   ? 'flex' : 'none';
+  document.getElementById('reNavOverview').classList.toggle('active', view === 'overview');
+  document.getElementById('reNavEditor').classList.toggle('active', view === 'editor');
+  if (view === 'overview') renderReOverview();
+}
+
+function setReOverviewView(v) {
+  reOverviewViewMode = v;
+  const isCal = v === 'calendar';
+  document.getElementById('reOvsw-list').classList.toggle('active', v === 'list');
+  document.getElementById('reOvsw-board').classList.toggle('active', v === 'board');
+  document.getElementById('reOvsw-cal').classList.toggle('active', isCal);
+  document.getElementById('reOverviewListView').style.display  = v === 'list'  ? 'block' : 'none';
+  document.getElementById('reOverviewBoardView').style.display = v === 'board' ? 'flex'  : 'none';
+  document.getElementById('reOverviewCalView').style.display   = isCal         ? 'flex'  : 'none';
+  const filters = document.querySelector('#reOverviewPane .x-ov-filters');
+  const bulkBtn = document.getElementById('reBulkSelectToggle');
+  if (filters) filters.style.display = isCal ? 'none' : '';
+  if (bulkBtn) bulkBtn.style.display = isCal ? 'none' : '';
+  renderReOverview();
+}
+
+function setReOverviewFilter(btn) {
+  document.querySelectorAll('#reOverviewChips .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  reStatusFilter = btn.dataset.status;
+  document.querySelectorAll('#reStatusChips .chip').forEach(c => c.classList.remove('active'));
+  const ec = document.querySelector(`#reStatusChips .chip[data-status="${reStatusFilter}"]`);
+  if (ec) ec.classList.add('active');
+  setReSidebarFilterByStatus(reStatusFilter);
+  reSelectedIds.clear(); reUpdateBulkBar();
+  renderReOverview();
+}
+
+function renderReOverview() {
+  renderReChipCounts();
+  if (reOverviewViewMode === 'list') renderReListView();
+  else if (reOverviewViewMode === 'board') renderReBoardView();
+  else if (reOverviewViewMode === 'calendar') renderCalView('re');
+}
+
+function _reOvFiltered() {
+  const search = (document.getElementById('reOvSearch')?.value || '').toLowerCase();
+  const mkt = document.getElementById('reOvMarket')?.value || 'all';
+  return rePosts.filter(p => {
+    if (reStatusFilter !== 'all' && p.status !== reStatusFilter) return false;
+    if (mkt !== 'all' && (p.market || '') !== mkt) return false;
+    if (search && !(p.content || '').toLowerCase().includes(search)) return false;
+    return true;
+  });
+}
+
+function renderReListView() {
+  const filtered = _reOvFiltered();
+  const tbody = document.getElementById('reListBody');
+  const colspan = reSelectMode ? '8' : '7';
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;padding:40px;color:var(--text-dim);">No posts found</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(p => {
+    const preview = (p.content || '').slice(0, 120);
+    const statusLabel = { draft: '📝 Draft', scheduled: '🕐 Scheduled', posted: '✅ Posted' }[p.status] || p.status;
+    const market = p.market ? xMarketFlag(p.market) + ' ' + p.market : '—';
+    const scheduled = p.scheduled_at ? fmtDate(p.scheduled_at) : '—';
+    const editor = p.editor_email ? escHtml(p.editor_email.split('@')[0]) : '—';
+    const checked = reSelectedIds.has(p.id) ? ' checked' : '';
+    const cbCell = reSelectMode ? `<td class="x-cb-col" onclick="event.stopPropagation();"><input type="checkbox" class="x-select-cb" data-id="${p.id}"${checked} onchange="reToggleSelect(${p.id}, this.checked)"></td>` : '';
+    const rowClick = reSelectMode ? `onclick="reRowClick(${p.id})"` : `onclick="openRePostFromOverview(${p.id})"`;
+    const rowBg = reSelectedIds.has(p.id) ? 'background:var(--surface2);' : '';
+    return `<tr style="cursor:pointer;${rowBg}" ${rowClick}>
+      ${cbCell}
+      <td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;">${escHtml(preview)}${blogSourceBadge(p)}</td>
+      <td style="font-size:13px;">${market}</td>
+      <td><span class="x-status-badge ${p.status}" style="font-size:11px;padding:3px 9px;">${statusLabel}</span></td>
+      <td style="font-size:12px;color:var(--text-dim);">${scheduled}</td>
+      <td style="font-size:12px;color:var(--text-dim);">${p.created_at ? fmtDate(p.created_at) : '—'}</td>
+      <td style="font-size:12px;color:var(--text-dim);">${editor}</td>
+      <td><button class="btn btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="event.stopPropagation();openRePostFromOverview(${p.id})">Edit</button></td>
+    </tr>`;
+  }).join('');
+  const allCb = document.getElementById('reSelectAllCb');
+  if (allCb) {
+    const ids = filtered.map(p => p.id);
+    allCb.checked = ids.length > 0 && ids.every(id => reSelectedIds.has(id));
+    allCb.indeterminate = !allCb.checked && ids.some(id => reSelectedIds.has(id));
+  }
+}
+
+function renderReBoardView() {
+  const search = (document.getElementById('reOvSearch')?.value || '').toLowerCase();
+  const mkt = document.getElementById('reOvMarket')?.value || 'all';
+  ['draft', 'scheduled', 'posted'].forEach(status => {
+    const countEl = document.getElementById(`reBCount-${status}`);
+    const cardsEl = document.getElementById(`reBCards-${status}`);
+    const filtered = rePosts.filter(p => {
+      if (p.status !== status) return false;
+      if (mkt !== 'all' && (p.market || '') !== mkt) return false;
+      if (search && !(p.content || '').toLowerCase().includes(search)) return false;
+      return true;
+    });
+    if (countEl) countEl.textContent = filtered.length;
+    if (!cardsEl) return;
+    if (!filtered.length) { cardsEl.innerHTML = '<div style="padding:12px;font-size:12px;color:var(--text-dim);">No posts</div>'; return; }
+    cardsEl.innerHTML = filtered.map(p => {
+      const preview = (p.content || '').slice(0, 120);
+      const market = p.market ? xMarketFlag(p.market) + ' ' + p.market : '';
+      return `<div class="x-board-card" onclick="openRePostFromOverview(${p.id})">
+        <div class="x-board-card-preview">${escHtml(preview)}</div>
+        <div class="x-board-card-meta">
+          ${market ? `<span>${market}</span>` : ''}
+          ${p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : ''}${launchBadge(p)}
+          <span>${p.created_at ? fmtDate(p.created_at) : ''}</span>
+        </div>
+      </div>`;
+    }).join('');
+  });
+}
+
+function openRePostFromOverview(id) {
+  const pane = document.getElementById('reEditorPane');
+  const backdrop = document.getElementById('reEditorModalBackdrop');
+  pane.classList.add('as-modal');
+  pane.style.display = 'flex';
+  backdrop.style.display = 'block';
+  openRePost(id);
+}
+
+function closeReEditorModal() {
+  const pane = document.getElementById('reEditorPane');
+  const backdrop = document.getElementById('reEditorModalBackdrop');
+  pane.classList.remove('as-modal');
+  pane.style.display = 'none';
+  backdrop.style.display = 'none';
+  if (pane.dataset.fromSocialCal) {
+    _closeSocialCalModal(pane, backdrop);
+    renderSocialCalView();
+    return;
+  }
+  const platDiv = document.getElementById('redditPlatform');
+  if (platDiv && platDiv.dataset.fromBlogView) {
+    delete platDiv.dataset.fromBlogView;
+    platDiv.style.display = 'none';
+  } else if (reOverviewViewMode === 'calendar') {
+    renderCalView('re');
+  }
+}
+
+function renderReChipCounts() {
+  const counts = { all: rePosts.length, draft: 0, scheduled: 0, posted: 0 };
+  rePosts.forEach(p => { if (counts[p.status] !== undefined) counts[p.status]++; });
+  Object.entries(counts).forEach(([status, count]) => {
+    const el = document.getElementById(`rechip-${status}`);
+    if (el) el.textContent = count;
+    const ov = document.getElementById(`reovchip-${status}`);
+    if (ov) ov.textContent = count;
+  });
+}
+
+function renderRePostList() {
+  const search = (document.getElementById('reSearchBox')?.value || '').toLowerCase();
+  const list = document.getElementById('rePostList');
+  const filtered = rePosts.filter(p => {
+    if (reStatusFilter !== 'all' && p.status !== reStatusFilter) return false;
+    if (search && !(p.content || '').toLowerCase().includes(search)) return false;
+    return true;
+  });
+  if (!filtered.length) { list.innerHTML = '<div style="padding:20px 14px;font-size:13px;color:var(--text-dim);">No posts found</div>'; return; }
+  list.innerHTML = filtered.map(p => {
+    const isActive = currentRePost && currentRePost.id === p.id ? ' active' : '';
+    const statusLabel = { draft: '📝', scheduled: '🕐', posted: '✅' }[p.status] || '';
+    const market = p.market ? `<span style="color:var(--text-dim);">${xMarketFlag(p.market)}</span>` : '';
+    const preview = (p.content || '').slice(0, 120);
+    return `<div class="x-post-item${isActive}" onclick="openRePost(${p.id})">
+      <div class="x-post-item-preview">${escHtml(preview)}</div>
+      <div class="x-post-item-meta">${statusLabel} ${market} <span>${p.created_at ? fmtDate(p.created_at) : ''}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function setReFilter(btn) {
+  document.querySelectorAll('#reStatusChips .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  reStatusFilter = btn.dataset.status;
+  setReSidebarFilterByStatus(reStatusFilter);
+  renderRePostList();
+}
+
+function setReSidebarFilter(btn) {
+  document.querySelectorAll('#reEditorPane .x-status-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  reStatusFilter = btn.dataset.status;
+  document.querySelectorAll('#reStatusChips .chip').forEach(c => c.classList.remove('active'));
+  const chip = document.querySelector(`#reStatusChips .chip[data-status="${reStatusFilter}"]`);
+  if (chip) chip.classList.add('active');
+  renderRePostList();
+}
+
+function setReSidebarFilterByStatus(status) {
+  document.querySelectorAll('#reEditorPane .x-status-tab').forEach(t => t.classList.remove('active'));
+  const tab = document.querySelector(`#reEditorPane .x-status-tab[data-status="${status}"]`);
+  if (tab) tab.classList.add('active');
+}
+
+async function openRePost(id) {
+  if (reIsDirty && currentRePost) {
+    if (!confirm('You have unsaved changes. Discard them?')) return;
+  }
+  const res = await fetch(`/api/reddit-posts/${id}`);
+  if (!res.ok) return;
+  currentRePost = await res.json();
+  reIsDirty = false;
+  populateReEditor(currentRePost);
+  renderRePostList();
+}
+
+function populateReEditor(post) {
+  document.getElementById('reNoPostState').style.display = 'none';
+  document.getElementById('reEditorContent').style.display = 'flex';
+  document.getElementById('reMetaPanel').style.display = '';
+
+  const ta = document.getElementById('reContentInput');
+  ta.value = post.content || '';
+  autoResizeTa(ta);
+  document.getElementById('reSubredditInput').value = post.subreddit || 'r/HitPay_official';
+  document.getElementById('reTitleInput').value = post.title || '';
+  const replyTa = document.getElementById('reReplyInput');
+  replyTa.value = post.reply_comment || '';
+  autoResizeTa(replyTa);
+  updateReCharCount();
+
+  document.getElementById('reMarket').value = post.market || '';
+  toggleReStatusFields(post.status || 'draft');
+  if (post.scheduled_at) {
+    const dt = new Date(post.scheduled_at);
+    document.getElementById('reScheduledAt').value = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  } else {
+    document.getElementById('reScheduledAt').value = '';
+  }
+  document.getElementById('rePostUrl').value = post.post_url || '';
+
+  const badge = document.getElementById('reStatusBadge');
+  const labels = { draft: '📝 Draft', scheduled: '🕐 Scheduled', posted: '✅ Posted' };
+  badge.textContent = labels[post.status] || post.status;
+  badge.className = `x-status-badge ${post.status || 'draft'}`;
+  document.getElementById('reStatusSelect').value = post.status || 'draft';
+
+  loadReAuditLog(post.id);
+
+  loadSourcePostForSocialPost('reddit', post.source_blog_post_id);
+}
+
+function reMarkDirty() { reIsDirty = true; }
+
+function updateReCharCount() {
+  const bodyLen = (document.getElementById('reContentInput')?.value || '').length;
+  const bodyEl = document.getElementById('reCharCount');
+  if (bodyEl) bodyEl.textContent = `${bodyLen}`;
+  const titleLen = (document.getElementById('reTitleInput')?.value || '').length;
+  const titleEl = document.getElementById('reTitleCharCount');
+  if (titleEl) {
+    titleEl.textContent = `${titleLen} / 300`;
+    titleEl.className = 'x-char-count' + (titleLen > 300 ? ' over' : titleLen > 270 ? ' warn' : '');
+  }
+  const replyLen = (document.getElementById('reReplyInput')?.value || '').length;
+  const replyEl = document.getElementById('reReplyCharCount');
+  if (replyEl) replyEl.textContent = `${replyLen}`;
+}
+
+function updateCreateReCharCount() {
+  const len = (document.getElementById('createReContent')?.value || '').length;
+  const el = document.getElementById('createReCharCount');
+  if (!el) return;
+  el.textContent = `${len}`;
+}
+
+function toggleReStatusFields(status) {
+  document.getElementById('reScheduledSection').style.display = status === 'scheduled' ? 'block' : 'none';
+  document.getElementById('rePostedSection').style.display = status === 'posted' ? 'block' : 'none';
+}
+
+function handleReStatusChange(status) {
+  toggleReStatusFields(status);
+  reMarkDirty();
+}
+
+async function saveRePost() {
+  if (!currentRePost) return;
+  const content = (document.getElementById('reContentInput').value || '').trim();
+  if (!content) { showToast('OP body cannot be empty', 'error'); return; }
+  const title = document.getElementById('reTitleInput').value.trim();
+  const subreddit = document.getElementById('reSubredditInput').value.trim() || 'r/HitPay_official';
+  const replyComment = document.getElementById('reReplyInput').value.trim() || null;
+  const status = document.getElementById('reStatusSelect').value;
+  const market = document.getElementById('reMarket').value;
+  const scheduledAt = localDatetimeToISO(document.getElementById('reScheduledAt').value);
+  const postUrl = document.getElementById('rePostUrl').value.trim() || null;
+
+  const updateRes = await fetch(`/api/reddit-posts/${currentRePost.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, title, subreddit, reply_comment: replyComment, market: market || null, scheduled_at: scheduledAt }),
+  });
+  if (!updateRes.ok) { showToast('Save failed', 'error'); return; }
+
+  if (status !== currentRePost.status) {
+    const statusRes = await fetch(`/api/reddit-posts/${currentRePost.id}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, scheduled_at: scheduledAt, post_url: postUrl }),
+    });
+    if (!statusRes.ok) { showToast('Status update failed', 'error'); return; }
+  }
+
+  reIsDirty = false;
+  currentRePost = { ...currentRePost, content, title, subreddit, reply_comment: replyComment, market: market || null, status, scheduled_at: scheduledAt, post_url: postUrl };
+  const idx = rePosts.findIndex(p => p.id === currentRePost.id);
+  if (idx !== -1) rePosts[idx] = { ...rePosts[idx], ...currentRePost };
+  renderRePostList();
+  renderReChipCounts();
+  if (reCurrentView === 'overview') renderReOverview();
+  showToast('Saved');
+  loadReAuditLog(currentRePost.id);
+}
+
+async function deleteRePost() {
+  if (!currentRePost) return;
+  if (!confirm('Delete this Reddit post? This cannot be undone.')) return;
+  const res = await fetch(`/api/reddit-posts/${currentRePost.id}`, { method: 'DELETE' });
+  if (!res.ok) { showToast('Delete failed', 'error'); return; }
+  rePosts = rePosts.filter(p => p.id !== currentRePost.id);
+  currentRePost = null;
+  reIsDirty = false;
+  document.getElementById('reNoPostState').style.display = '';
+  document.getElementById('reEditorContent').style.display = 'none';
+  document.getElementById('reMetaPanel').style.display = 'none';
+  renderRePostList();
+  renderReChipCounts();
+  renderReOverview();
+  showToast('Post deleted');
+}
+
+async function loadReAuditLog(postId) {
+  const res = await fetch(`/api/reddit-posts/${postId}/audit-log`);
+  if (!res.ok) return;
+  const entries = await res.json();
+  const section = document.getElementById('reAuditSection');
+  const logEl = document.getElementById('reAuditLog');
+  if (!entries.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  logEl.innerHTML = entries.map(e => {
+    const ts = e.timestamp ? new Date(e.timestamp).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    const actor = (e.user_email || '').split('@')[0];
+    const actionLabel = { created: 'Created', edited: 'Edited', status_changed: 'Status changed', deleted: 'Deleted' }[e.action] || e.action;
+    let detail = '';
+    if (e.action === 'status_changed' && e.details) {
+      try { const d = typeof e.details === 'string' ? JSON.parse(e.details) : e.details; detail = `${d.from} → ${d.to}`; } catch {}
+    }
+    return `<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+      <div style="color:var(--text);font-weight:500;">${actionLabel}${detail ? ': ' + escHtml(detail) : ''}</div>
+      <div style="color:var(--text-dim);margin-top:2px;">${escHtml(actor)} · ${ts}</div>
+    </div>`;
+  }).join('');
+}
+
+
+function reToggleSelectMode() {
+  reSelectMode = !reSelectMode;
+  if (!reSelectMode) reSelectedIds.clear();
+  const btn = document.getElementById('reBulkSelectToggle');
+  if (btn) {
+    btn.textContent = reSelectMode ? '✕ Cancel' : '☑ Select';
+    btn.style.background = reSelectMode ? 'var(--accent)' : '';
+    btn.style.color = reSelectMode ? '#fff' : '';
+    btn.style.borderColor = reSelectMode ? 'var(--accent)' : '';
+  }
+  const cbHeader = document.getElementById('reCbHeaderCell');
+  if (cbHeader) cbHeader.style.display = reSelectMode ? '' : 'none';
+  reUpdateBulkBar();
+  renderReListView();
+}
+
+function reRowClick(id) { reToggleSelect(id, !reSelectedIds.has(id)); renderReListView(); }
+function reToggleSelect(id, checked) { if (checked) reSelectedIds.add(id); else reSelectedIds.delete(id); reUpdateBulkBar(); }
+
+function reToggleSelectAll(checked) {
+  _reOvFiltered().forEach(p => { if (checked) reSelectedIds.add(p.id); else reSelectedIds.delete(p.id); });
+  reUpdateBulkBar();
+  renderReListView();
+}
+
+function reUpdateBulkBar() {
+  const n = reSelectedIds.size;
+  const bar = document.getElementById('reBulkBar');
+  const count = document.getElementById('reBulkCount');
+  if (bar) bar.style.display = (reSelectMode && n > 0) ? 'flex' : 'none';
+  if (count) count.textContent = `${n} selected`;
+  const sbar = document.getElementById('reSidebarBulkBar');
+  const scount = document.getElementById('reSidebarBulkCount');
+  if (sbar) sbar.style.display = n > 0 ? 'flex' : 'none';
+  if (scount) scount.textContent = `${n} selected`;
+}
+
+function reClearSelection() {
+  reSelectedIds.clear();
+  reUpdateBulkBar();
+  if (reSelectMode) renderReListView();
+  renderRePostList();
+}
+
+async function reBulkDelete() {
+  const ids = [...reSelectedIds];
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} Reddit post${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+  try {
+    const res = await fetch('/api/reddit-posts/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) { showToast('Bulk delete failed', 'error'); return; }
+    const result = await res.json();
+    const deleted = new Set(result.deleted);
+    rePosts = rePosts.filter(p => !deleted.has(p.id));
+    if (currentRePost && deleted.has(currentRePost.id)) {
+      currentRePost = null; reIsDirty = false;
+      document.getElementById('reNoPostState').style.display = '';
+      document.getElementById('reEditorContent').style.display = 'none';
+      document.getElementById('reMetaPanel').style.display = 'none';
+    }
+    reSelectedIds.clear(); reSelectMode = false;
+    const btn = document.getElementById('reBulkSelectToggle');
+    if (btn) { btn.textContent = '☑ Select'; btn.style.background = ''; btn.style.color = ''; btn.style.borderColor = ''; }
+    const cbHeader = document.getElementById('reCbHeaderCell');
+    if (cbHeader) cbHeader.style.display = 'none';
+    reUpdateBulkBar();
+    renderRePostList(); renderReChipCounts(); renderReOverview();
+    showToast(`Deleted ${result.deleted.length} post${result.deleted.length > 1 ? 's' : ''}`, 'success');
+  } catch (e) { showToast('Error during bulk delete', 'error'); }
+}
+
+// ── Reddit Create Modal ────────────────────────────────────────────────────
+let _reGeneratedPost = null;
+
+function openCreateReModal() {
+  document.getElementById('createReContent').value = '';
+  document.getElementById('createReSubreddit').value = 'r/HitPay_official';
+  document.getElementById('createReTitle').value = '';
+  document.getElementById('createReReply').value = '';
+  document.getElementById('createReMarket').value = '';
+  document.getElementById('createReCharCount').textContent = '0';
+  document.getElementById('createReTopicHint').value = '';
+  document.getElementById('createReGenerateMarket').value = '';
+  _reGeneratedPost = null;
+  switchCreateReTab('generate');
+  document.getElementById('createReModal').classList.add('open');
+}
+
+function closeCreateReModal() {
+  document.getElementById('createReModal').classList.remove('open');
+}
+
+function switchCreateReTab(tab) {
+  const isWrite = tab === 'write';
+  document.getElementById('createReWritePane').style.display = isWrite ? '' : 'none';
+  document.getElementById('createReGeneratePane').style.display = isWrite ? 'none' : '';
+  document.getElementById('createReTabWrite').className = isWrite ? 'btn btn-primary' : 'btn';
+  document.getElementById('createReTabGenerate').className = isWrite ? 'btn' : 'btn btn-primary';
+  if (!isWrite) {
+    document.getElementById('createReGenerateActions').style.display = 'flex';
+    document.getElementById('createReGenerateLoading').style.display = 'none';
+    document.getElementById('createReGenerateResult').style.display = 'none';
+    setTimeout(() => document.getElementById('createReTopicHint').focus(), 50);
+  }
+}
+
+async function runRePostGenerate() {
+  const topicHint = document.getElementById('createReTopicHint').value.trim();
+  const market = document.getElementById('createReGenerateMarket').value;
+
+  document.getElementById('createReGenerateActions').style.display = 'none';
+  document.getElementById('createReGenerateResult').style.display = 'none';
+  document.getElementById('createReGenerateLoading').style.display = 'block';
+
+  try {
+    const res = await fetch('/api/reddit-posts/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ market: market || null, topic_hint: topicHint || null, brand: activeBrand }),
+    });
+    if (!res.ok) {
+      let errMsg = 'Generation failed — try again';
+      try { const e = await res.json(); if (e.detail) errMsg = e.detail; } catch (_) {}
+      throw new Error(errMsg);
+    }
+    const data = await res.json();
+    _reGeneratedPost = data;
+
+    document.getElementById('createReGenerateTopic').textContent = data.subreddit || 'r/HitPay_official';
+    document.getElementById('createReGeneratePost').textContent =
+      (data.title ? 'TITLE: ' + data.title + '\n\n' : '') +
+      (data.content || '') +
+      (data.reply_comment ? '\n\n— HitPay reply —\n' + data.reply_comment : '');
+
+    document.getElementById('createReGenerateLoading').style.display = 'none';
+    document.getElementById('createReGenerateResult').style.display = 'block';
+  } catch (e) {
+    document.getElementById('createReGenerateLoading').style.display = 'none';
+    document.getElementById('createReGenerateActions').style.display = 'flex';
+    showToast(e.message || 'Generation failed — try again', 'error');
+  }
+}
+
+function useReGeneratedPost() {
+  if (!_reGeneratedPost) return;
+  document.getElementById('createReSubreddit').value = _reGeneratedPost.subreddit || 'r/HitPay_official';
+  document.getElementById('createReTitle').value = _reGeneratedPost.title || '';
+  document.getElementById('createReContent').value = _reGeneratedPost.content || '';
+  document.getElementById('createReReply').value = _reGeneratedPost.reply_comment || '';
+  document.getElementById('createReMarket').value = document.getElementById('createReGenerateMarket').value;
+  updateCreateReCharCount();
+  switchCreateReTab('write');
+}
+
+async function submitCreateRePost() {
+  const content = document.getElementById('createReContent').value.trim();
+  if (!content) { showToast('OP body cannot be empty', 'error'); return; }
+  const title = document.getElementById('createReTitle').value.trim();
+  const subreddit = document.getElementById('createReSubreddit').value.trim() || 'r/HitPay_official';
+  const replyComment = document.getElementById('createReReply').value.trim() || null;
+  const market = document.getElementById('createReMarket').value;
+  const btn = document.getElementById('createReBtn');
+  btn.disabled = true; btn.textContent = 'Creating…';
+  const res = await fetch('/api/reddit-posts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, title, subreddit, reply_comment: replyComment, market: market || null, brand: activeBrand }),
+  });
+  btn.disabled = false; btn.textContent = 'Create Post';
+  if (!res.ok) { showToast('Failed to create post', 'error'); return; }
+  const { id } = await res.json();
+  closeCreateReModal();
+  await loadRePosts();
+  openRePostFromOverview(id);
+  showToast('Post created');
+}
+
 // ── Social Calendar ────────────────────────────────────────────────────────────
 let socialCalViewMode = 'month';
 let socialCalDate = new Date();
@@ -9970,6 +10890,7 @@ function socialCalGetAllPosts() {
     ...xPosts.map(p => ({ ...p, _platform: 'x' })),
     ...thrPosts.map(p => ({ ...p, _platform: 'thr' })),
     ...liPosts.map(p => ({ ...p, _platform: 'li' })),
+    ...rePosts.map(p => ({ ...p, _platform: 're' })),
   ];
 }
 
@@ -9978,6 +10899,7 @@ async function loadSocialCalPosts() {
     fetch(`/api/x-posts?brand=${activeBrand}`).then(r => r.ok ? r.json() : []).then(d => { xPosts = d; }),
     fetch(`/api/threads-posts?brand=${activeBrand}`).then(r => r.ok ? r.json() : []).then(d => { thrPosts = d; }),
     fetch(`/api/linkedin-posts?brand=${activeBrand}`).then(r => r.ok ? r.json() : []).then(d => { liPosts = d; }),
+    fetch(`/api/reddit-posts?brand=${activeBrand}`).then(r => r.ok ? r.json() : []).then(d => { rePosts = d; }),
   ]);
   renderSocialCalView();
   renderSocialCalDraftSidebar();
@@ -10051,11 +10973,12 @@ function _closeSocialCalModal(pane, backdrop) {
 function openXFromSocialCal(id)   { _openSocialCalModal('xEditorPane',   'xEditorModalBackdrop',   openXPostFromOverview,   id); }
 function openThrFromSocialCal(id) { _openSocialCalModal('thrEditorPane', 'thrEditorModalBackdrop', openThrPostFromOverview, id); }
 function openLiFromSocialCal(id)  { _openSocialCalModal('liEditorPane',  'liEditorModalBackdrop',  openLiPostFromOverview,  id); }
+function openReFromSocialCal(id)  { _openSocialCalModal('reEditorPane',  'reEditorModalBackdrop',  openRePostFromOverview,  id); }
 
 function socialCalEventChipHtml(p) {
-  const labels     = { x: '𝕏', thr: 'Th', li: 'in' };
-  const colors     = { x: '#1D9BF0', thr: '#8B5CF6', li: '#0A66C2' };
-  const fromCalFns = { x: 'openXFromSocialCal', thr: 'openThrFromSocialCal', li: 'openLiFromSocialCal' };
+  const labels     = { x: '𝕏', thr: 'Th', li: 'in', re: 'Re' };
+  const colors     = { x: '#1D9BF0', thr: '#8B5CF6', li: '#0A66C2', re: '#FF4500' };
+  const fromCalFns = { x: 'openXFromSocialCal', thr: 'openThrFromSocialCal', li: 'openLiFromSocialCal', re: 'openReFromSocialCal' };
   const plat = p._platform || 'x';
   const mkt = p.market ? xMarketFlag(p.market) + ' ' : '';
   const preview = escHtml((p.content || '').slice(0, 45));
@@ -10075,9 +10998,9 @@ function renderSocialCalDraftSidebar() {
   const listEl = document.getElementById('socialCalDraftList');
   if (countEl) countEl.textContent = drafts.length;
   if (!listEl) return;
-  const labels  = { x: '𝕏', thr: 'Th', li: 'in' };
-  const colors  = { x: '#1D9BF0', thr: '#8B5CF6', li: '#0A66C2' };
-  const openFns = { x: 'openXPostFromOverview', thr: 'openThrPostFromOverview', li: 'openLiPostFromOverview' };
+  const labels  = { x: '𝕏', thr: 'Th', li: 'in', re: 'Re' };
+  const colors  = { x: '#1D9BF0', thr: '#8B5CF6', li: '#0A66C2', re: '#FF4500' };
+  const openFns = { x: 'openXPostFromOverview', thr: 'openThrPostFromOverview', li: 'openLiPostFromOverview', re: 'openRePostFromOverview' };
   if (!drafts.length) {
     listEl.innerHTML = `<div style="padding:12px;font-size:12px;color:var(--text-dim);">No unscheduled drafts</div>`;
     return;
@@ -10087,7 +11010,7 @@ function renderSocialCalDraftSidebar() {
     const preview = escHtml((p.content || '').slice(0, 90));
     const mkt = p.market ? `<div class="cal-draft-card-market">${xMarketFlag(p.market)} ${p.market}</div>` : '';
     const color = colors[plat] || '#888';
-    const fromCalFns2 = { x: 'openXFromSocialCal', thr: 'openThrFromSocialCal', li: 'openLiFromSocialCal' };
+    const fromCalFns2 = { x: 'openXFromSocialCal', thr: 'openThrFromSocialCal', li: 'openLiFromSocialCal', re: 'openReFromSocialCal' };
     const blogBadge = (p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : '') + launchBadge(p);
     return `<div class="cal-draft-card" style="border-left:3px solid ${color};"
       onclick="${fromCalFns2[plat]}(${p.id})">
@@ -10174,16 +11097,18 @@ let thrCalViewMode = 'month';
 let thrCalDate = new Date();
 let liCalViewMode = 'month';
 let liCalDate = new Date();
+let reCalViewMode = 'month';
+let reCalDate = new Date();
 let _calDragPostId = null;
 let _calDragPlatform = null;
 let _calDropDateKey = null;
 
 // Platform helpers
-function calGetPosts(p)      { return p === 'x' ? xPosts : p === 'thr' ? thrPosts : liPosts; }
-function calGetDate(p)       { return p === 'x' ? xCalDate : p === 'thr' ? thrCalDate : liCalDate; }
-function calSetDate(p, d)    { if (p === 'x') xCalDate = d; else if (p === 'thr') thrCalDate = d; else liCalDate = d; }
-function calGetViewMode(p)   { return p === 'x' ? xCalViewMode : p === 'thr' ? thrCalViewMode : liCalViewMode; }
-function calPfx(p)           { return p === 'x' ? 'x' : p === 'thr' ? 'thr' : 'li'; }
+function calGetPosts(p)      { return p === 'x' ? xPosts : p === 'thr' ? thrPosts : p === 're' ? rePosts : liPosts; }
+function calGetDate(p)       { return p === 'x' ? xCalDate : p === 'thr' ? thrCalDate : p === 're' ? reCalDate : liCalDate; }
+function calSetDate(p, d)    { if (p === 'x') xCalDate = d; else if (p === 'thr') thrCalDate = d; else if (p === 're') reCalDate = d; else liCalDate = d; }
+function calGetViewMode(p)   { return p === 'x' ? xCalViewMode : p === 'thr' ? thrCalViewMode : p === 're' ? reCalViewMode : liCalViewMode; }
+function calPfx(p)           { return p === 'x' ? 'x' : p === 'thr' ? 'thr' : p === 're' ? 're' : 'li'; }
 
 function calDateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -10202,7 +11127,7 @@ function calBuildPostMap(posts) {
 }
 
 function calEventChipHtml(p, platform) {
-  const fns = { x: 'openXPostFromOverview', thr: 'openThrPostFromOverview', li: 'openLiPostFromOverview' };
+  const fns = { x: 'openXPostFromOverview', thr: 'openThrPostFromOverview', li: 'openLiPostFromOverview', re: 'openRePostFromOverview' };
   const fn = fns[platform] || 'openXPostFromOverview';
   const mkt = p.market ? xMarketFlag(p.market) + ' ' : '';
   const preview = escHtml((p.content || '').slice(0, 50));
@@ -10245,6 +11170,7 @@ function calToday(p) { calSetDate(p, new Date()); renderCalView(p); }
 function setXCalViewMode(v)   { xCalViewMode  = v; renderCalView('x'); }
 function setThrCalViewMode(v) { thrCalViewMode = v; renderCalView('thr'); }
 function setLiCalViewMode(v)  { liCalViewMode  = v; renderCalView('li'); }
+function setReCalViewMode(v)  { reCalViewMode  = v; renderCalView('re'); }
 
 function renderCalDraftSidebar(platform) {
   const pfx = calPfx(platform);
@@ -10262,7 +11188,7 @@ function renderCalDraftSidebar(platform) {
     const mkt = p.market ? `<div class="cal-draft-card-market">${xMarketFlag(p.market)} ${p.market}</div>` : '';
     const dateStr = p.created_at ? fmtDate(p.created_at) : '';
     const dateLine = dateStr ? `<div class="cal-draft-card-date">${escHtml(dateStr)}</div>` : '';
-    const openFn = platform === 'x' ? 'openXPostFromOverview' : platform === 'li' ? 'openLiPostFromOverview' : 'openThrPostFromOverview';
+    const openFn = platform === 'x' ? 'openXPostFromOverview' : platform === 'li' ? 'openLiPostFromOverview' : platform === 're' ? 'openRePostFromOverview' : 'openThrPostFromOverview';
     const blogBadge = (p.source_blog_post_id ? '<span class="blog-source-badge">↗ blog</span>' : '') + launchBadge(p);
     return `<div class="cal-draft-card" draggable="true"
       ondragstart="calDragStart(event,${p.id},'${platform}')"
@@ -10403,7 +11329,7 @@ async function calConfirmSchedule() {
   if (!postId || !dateKey) return;
   // Convert local SGT time to UTC ISO using +08:00 offset
   const scheduledAt = new Date(`${dateKey}T${timeVal}:00+08:00`).toISOString();
-  const baseMap = { x: '/api/x-posts', thr: '/api/threads-posts', li: '/api/linkedin-posts' };
+  const baseMap = { x: '/api/x-posts', thr: '/api/threads-posts', li: '/api/linkedin-posts', re: '/api/reddit-posts' };
   const base = baseMap[platform] || '/api/x-posts';
   try {
     const r1 = await fetch(`${base}/${postId}`, {
@@ -10423,6 +11349,7 @@ async function calConfirmSchedule() {
     renderCalView(platform);
     if (platform === 'x') { renderXChipCounts(); renderXPostList(); }
     else if (platform === 'li') { renderLiChipCounts(); renderLiPostList(); }
+    else if (platform === 're') { renderReChipCounts(); renderRePostList(); }
     else { renderThrChipCounts(); renderThrPostList(); }
     const disp = new Date(scheduledAt).toLocaleString('en-SG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     showToast(`Scheduled for ${disp}`);
@@ -10635,6 +11562,7 @@ async function startLaunchBundle() {
   if (document.getElementById('lc-x').checked) channels.push('x');
   if (document.getElementById('lc-threads').checked) channels.push('threads');
   if (document.getElementById('lc-linkedin').checked) channels.push('linkedin');
+  if (document.getElementById('lc-reddit').checked) channels.push('reddit');
   if (!channels.length) { showToast('Select at least one channel', 'error'); return; }
 
   if (_launchAbortController) _launchAbortController.abort();
@@ -10648,7 +11576,7 @@ async function startLaunchBundle() {
   // Vercel's serverless runtime drops a multi-minute silent SSE connection, which
   // showed up as "Failed to fetch". Blog runs first so the social drafts can link
   // back to it; per-channel failures are collected and shown, not fatal.
-  const result = { blog_id: null, title: null, x_id: null, threads_id: null, linkedin_id: null, errors: {}, link_warnings: null };
+  const result = { blog_id: null, title: null, x_id: null, threads_id: null, linkedin_id: null, reddit_id: null, errors: {}, link_warnings: null };
 
   async function postJSON(url, payload) {
     const res = await fetch(url, {
@@ -10701,6 +11629,17 @@ async function startLaunchBundle() {
       }
     }
 
+    if (channels.includes('reddit')) {
+      statusEl.textContent = 'Generating Reddit draft…';
+      try {
+        const rr = await postJSON('/api/generate-launch/reddit', { launch_content: launch, market, topic, brand: activeBrand, blog_id: result.blog_id });
+        result.reddit_id = rr.reddit_id;
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        result.errors.reddit = e.message || 'failed';
+      }
+    }
+
     _renderLaunchResults(result);
     // Refresh the lists so the new drafts + blog show their 🚀 badge.
     loadPosts();
@@ -10719,6 +11658,7 @@ function _renderLaunchResults(msg) {
   if (msg.x_id) rows.push({ label: '𝕏 View X draft', fn: `_launchOpen('x', ${msg.x_id})` });
   if (msg.threads_id) rows.push({ label: '🧵 View Threads draft', fn: `_launchOpen('threads', ${msg.threads_id})` });
   if (msg.linkedin_id) rows.push({ label: '💼 View LinkedIn draft', fn: `_launchOpen('linkedin', ${msg.linkedin_id})` });
+  if (msg.reddit_id) rows.push({ label: '👽 View Reddit draft', fn: `_launchOpen('reddit', ${msg.reddit_id})` });
   wrap.innerHTML = rows.map(r =>
     `<button class="btn btn-secondary" style="justify-content:flex-start;" onclick="${r.fn}">${r.label}</button>`
   ).join('');
@@ -10728,7 +11668,7 @@ function _renderLaunchResults(msg) {
     wrap.innerHTML += `<div class="modal-sub" style="color:var(--red);margin-top:6px;">Some channels failed: ${failed.join(', ')}. You can regenerate them from their tab.</div>`;
   }
   _showLaunchView('results');
-  showToast('Created blog + X, Threads & LinkedIn drafts from your launch');
+  showToast('Created blog + X, Threads, LinkedIn & Reddit drafts from your launch');
 }
 
 function _launchOpen(kind, id) {
@@ -10737,6 +11677,7 @@ function _launchOpen(kind, id) {
   if (kind === 'x') { switchPlatform('x'); openXPostFromOverview(id); return; }
   if (kind === 'threads') { switchPlatform('threads'); openThrPostFromOverview(id); return; }
   if (kind === 'linkedin') { switchPlatform('linkedin'); openLiPostFromOverview(id); return; }
+  if (kind === 'reddit') { switchPlatform('reddit'); openRePostFromOverview(id); return; }
 }
 </script>
 
