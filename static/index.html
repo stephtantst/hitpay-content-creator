@@ -1939,7 +1939,8 @@
   }
   #xEditorPane.as-modal,
   #thrEditorPane.as-modal,
-  #liEditorPane.as-modal {
+  #liEditorPane.as-modal,
+  #reEditorPane.as-modal {
     position: fixed;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
@@ -1962,7 +1963,8 @@
   .editor-modal-close-btn:hover { color: var(--text); background: var(--surface2); }
   #xEditorPane.as-modal .editor-modal-close-btn,
   #thrEditorPane.as-modal .editor-modal-close-btn,
-  #liEditorPane.as-modal .editor-modal-close-btn { display: block; }
+  #liEditorPane.as-modal .editor-modal-close-btn,
+  #reEditorPane.as-modal .editor-modal-close-btn { display: block; }
 
   /* ── Calendar View ─────────────────────────────────────────────────────────── */
   .cal-wrap { display: flex; flex: 1; overflow: hidden; }
@@ -9814,6 +9816,7 @@ document.addEventListener('keydown', e => {
   if (document.getElementById('xEditorPane')?.classList.contains('as-modal')) closeXEditorModal();
   if (document.getElementById('thrEditorPane')?.classList.contains('as-modal')) closeThrEditorModal();
   if (document.getElementById('liEditorPane')?.classList.contains('as-modal')) closeLiEditorModal();
+  if (document.getElementById('reEditorPane')?.classList.contains('as-modal')) closeReEditorModal();
 });
 
 // ── LinkedIn Posts ────────────────────────────────────────────────────────────
