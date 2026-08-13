@@ -142,9 +142,19 @@ _NEIGHBOURHOODS = {
     "PH": ["Cubao", "Marikina", "Cebu", "Davao", "Alabang", "Pasig", "Quezon City", "Mandaluyong"],
 }
 
+_REPLY_OPENINGS = [
+    "Open the reply by answering the OP's exact problem in the first sentence, no preamble.",
+    "Open by picking up the specific detail the OP mentioned, then give the concrete fact.",
+    "Lead with the single most relevant number, fee, or timeline for their situation.",
+    "Lead with the specific payment method that fits their market, stated plainly.",
+    "Open by naming the trade-off honestly first, then how HitPay handles it.",
+    "Open with the practical next step they'd actually take, then why it works.",
+]
+
 
 def _variety_seed(market: str) -> str:
     opening = random.choice(_OPENING_STYLES)
+    reply_opening = random.choice(_REPLY_OPENINGS)
     biz = random.choice(_BUSINESS_TYPES)
     hoods = _NEIGHBOURHOODS.get((market or "").upper())
     area = random.choice(hoods) if hoods else None
@@ -152,8 +162,10 @@ def _variety_seed(market: str) -> str:
     return (
         "VARIETY (make THIS post distinct from previous ones):\n"
         f"- Persona seed for this post: {persona}. Use it only if it fits the blog topic; otherwise pick a different, equally specific small business — never default to a generic 'gift and lifestyle shop'.\n"
-        f"- Opening instruction: {opening}\n"
-        "- BANNED openers (do NOT start with any of these): 'so i run a...', 'i run a small...', 'i've been running...', 'i own a small shop near...'. Vary sentence one every time."
+        f"- OP opening instruction: {opening}\n"
+        "- BANNED OP openers (do NOT start with any of these): 'so i run a...', 'i run a small...', 'i've been running...', 'i own a small shop near...'. Vary sentence one every time.\n"
+        f"- REPLY opening instruction: {reply_opening}\n"
+        "- BANNED reply openers (do NOT start the reply with any of these): 'For [market] merchants...', 'If you're a [market] business...', 'Great question', 'Hey', 'Hi'. Vary how the reply opens every time."
     )
 
 
