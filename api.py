@@ -612,14 +612,14 @@ def api_ai_edit(post_id: int, body: AiEditRequest, _: str = Depends(require_auth
 class SocialAiEditRequest(BaseModel):
     content: str
     instruction: str
-    platform: str | None = None
+    platform: str | None = None   # x, threads, linkedin, reddit-op, reddit-reply
 
 
 @app.post("/api/social/ai-edit")
 def api_social_ai_edit(body: SocialAiEditRequest, _: str = Depends(require_auth)):
-    """Apply a targeted AI edit to a social post's content (X/Threads/LinkedIn/Reddit).
-    Stateless: takes content + instruction, returns edited content. The client writes
-    it back into the editor and saves via the platform's normal save flow."""
+    """Apply a targeted AI edit to a single social field (X/Threads/LinkedIn content,
+    or a Reddit OP body / reply, each edited independently). Stateless: takes content +
+    instruction, returns edited content. The client writes it back and saves normally."""
     from src.ai_editor import ai_edit_social
     content = (body.content or "").strip()
     instruction = (body.instruction or "").strip()

@@ -3507,12 +3507,18 @@
             </div>
             <div class="x-editor-header" style="margin-bottom:6px;">
               <span>OP body <span style="font-weight:400;color:var(--text-dim);">— merchant voice, no HitPay branding</span></span>
-              <span class="x-char-count" id="reCharCount">0</span>
+              <span style="display:inline-flex;gap:8px;align-items:center;">
+                <button class="btn btn-secondary" style="font-size:11px;padding:2px 8px;" onclick="openSocialAiEditModal('reddit_body')">✦ AI Edit</button>
+                <span class="x-char-count" id="reCharCount">0</span>
+              </span>
             </div>
             <textarea class="x-textarea" id="reContentInput" placeholder="Write the post as a real merchant in this market. No HitPay branding, honest limitation, stands alone…" oninput="reMarkDirty(); updateReCharCount(); autoResizeTa(this)" style="min-height:150px;"></textarea>
             <div class="x-editor-header" style="margin:14px 0 6px;">
               <span>HitPay reply comment <span style="font-weight:400;color:var(--text-dim);">— verified-account voice, plain &amp; honest</span></span>
-              <span class="x-char-count" id="reReplyCharCount">0</span>
+              <span style="display:inline-flex;gap:8px;align-items:center;">
+                <button class="btn btn-secondary" style="font-size:11px;padding:2px 8px;" onclick="openSocialAiEditModal('reddit_reply')">✦ AI Edit</button>
+                <span class="x-char-count" id="reReplyCharCount">0</span>
+              </span>
             </div>
             <textarea class="x-textarea" id="reReplyInput" placeholder="A separate reply from the verified HitPay account. Plain, helpful, localized, honest about limits…" oninput="reMarkDirty(); updateReCharCount(); autoResizeTa(this)" style="min-height:120px;border-left:3px solid #FF4500;"></textarea>
           </div>
@@ -3550,7 +3556,6 @@
           <div class="meta-section-title">Actions</div>
           <div class="action-buttons">
             <button class="btn btn-primary" id="reSaveBtn" onclick="saveRePost()">↑ Save Changes</button>
-            <button class="btn btn-secondary" onclick="openSocialAiEditModal('reddit')">✦ AI Edit</button>
             <button class="btn btn-danger" onclick="deleteRePost()">✕ Delete Post</button>
           </div>
         </div>
@@ -6543,27 +6548,39 @@ let _socialAiPlatform = null;
 const _SOCIAL_AI = {
   x: {
     label: 'X',
+    apiPlatform: 'x',
     ok: () => !!currentXPost,
     get: () => _getXContent(),
     set: (c) => { populateXEditor({ ...currentXPost, content: c }); xMarkDirty(); },
   },
   threads: {
     label: 'Threads',
+    apiPlatform: 'threads',
     ok: () => !!currentThrPost,
     get: () => _getThrContent(),
     set: (c) => { populateThrEditor({ ...currentThrPost, content: c }); thrMarkDirty(); },
   },
   linkedin: {
     label: 'LinkedIn',
+    apiPlatform: 'linkedin',
     ok: () => !!currentLiPost,
     get: () => document.getElementById('liContentInput').value,
     set: (c) => { const ta = document.getElementById('liContentInput'); ta.value = c; autoResizeTa(ta); updateLiCharCount(); liMarkDirty(); },
   },
-  reddit: {
-    label: 'Reddit (OP body)',
+  // Reddit has TWO independent AI-edit targets: the OP body and the HitPay reply.
+  reddit_body: {
+    label: 'Reddit — OP body',
+    apiPlatform: 'reddit-op',
     ok: () => !!currentRePost,
     get: () => document.getElementById('reContentInput').value,
     set: (c) => { const ta = document.getElementById('reContentInput'); ta.value = c; autoResizeTa(ta); updateReCharCount(); reMarkDirty(); },
+  },
+  reddit_reply: {
+    label: 'Reddit — HitPay reply',
+    apiPlatform: 'reddit-reply',
+    ok: () => !!currentRePost,
+    get: () => document.getElementById('reReplyInput').value,
+    set: (c) => { const ta = document.getElementById('reReplyInput'); ta.value = c; autoResizeTa(ta); updateReCharCount(); reMarkDirty(); },
   },
 };
 
@@ -6611,7 +6628,7 @@ async function applySocialAiEdit() {
     const res = await fetch('/api/social/ai-edit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, instruction, platform }),
+      body: JSON.stringify({ content, instruction, platform: cfg.apiPlatform || platform }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

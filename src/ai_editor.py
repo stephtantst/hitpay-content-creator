@@ -66,13 +66,23 @@ Rules:
 - Return ONLY the edited text — no preamble, no explanation, no code fences"""
 
 
-def ai_edit_social(content: str, instruction: str, platform: str = None) -> str:
-    """Apply a targeted edit to a social post's content (X, Threads, LinkedIn, Reddit).
+_SOCIAL_EXTRA = {
+    "reddit-op": "This is a Reddit OP body written in a real merchant's voice. Keep it casual (lowercase-casual is fine), keep it to 2-3 short paragraphs, put NO HitPay or product branding in it, and use NO em dashes.",
+    "reddit-reply": "This is the separate reply from the verified HitPay account. Keep it dry, matter-of-fact, and honest about limitations; no hype, no hashtags, and NO em dashes.",
+}
 
-    Platform-agnostic: operates on the raw content string, preserving any '---'
-    thread separators. Returns only the edited content.
+
+def ai_edit_social(content: str, instruction: str, platform: str = None) -> str:
+    """Apply a targeted edit to a single social field (X, Threads, LinkedIn content,
+    or a Reddit OP body / reply — platform 'reddit-op' or 'reddit-reply').
+
+    Operates on the raw content string, preserving any '---' thread separators.
+    Returns only the edited content.
     """
     plat_line = f"PLATFORM: {platform}\n\n" if platform else ""
+    extra = _SOCIAL_EXTRA.get(platform or "")
+    if extra:
+        plat_line += extra + "\n\n"
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     response = _messages_create_with_retry(client,
         model=CLAUDE_MODEL,
