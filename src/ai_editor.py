@@ -54,6 +54,44 @@ def ai_edit_selection(selection: str, instruction: str) -> str:
     return response.content[0].text.strip()
 
 
+_SOCIAL_EDIT_SYSTEM = """You are a precise content editor for HitPay's social media posts. Apply targeted edits to a social post's text.
+
+Rules:
+- Apply ONLY the requested change — do not rewrite, restructure, or "improve" anything else
+- Preserve the post's existing voice, tone, and line breaks exactly
+- If the text contains "---" on its own line, that separates individual posts in a thread — KEEP those separators and the number of posts unless the instruction explicitly says to add or remove posts
+- Respect platform length limits: X/Twitter posts must stay under 280 characters each; Threads posts under 500 characters each
+- Never add hashtags, emoji, or marketing jargon ("seamlessly", "unlock", "game-changer", etc.) unless explicitly asked
+- Do not add or invent facts, rates, or claims that are not already present
+- Return ONLY the edited text — no preamble, no explanation, no code fences"""
+
+
+def ai_edit_social(content: str, instruction: str, platform: str = None) -> str:
+    """Apply a targeted edit to a social post's content (X, Threads, LinkedIn, Reddit).
+
+    Platform-agnostic: operates on the raw content string, preserving any '---'
+    thread separators. Returns only the edited content.
+    """
+    plat_line = f"PLATFORM: {platform}\n\n" if platform else ""
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    response = _messages_create_with_retry(client,
+        model=CLAUDE_MODEL,
+        max_tokens=2048,
+        system=_SOCIAL_EDIT_SYSTEM,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Apply this edit to the following social post.\n\n"
+                f"{plat_line}"
+                f"INSTRUCTION: {instruction}\n\n"
+                f"POST TEXT:\n---\n{content}\n---\n\n"
+                f"Return only the edited text, preserving line breaks and any '---' thread separators."
+            )
+        }]
+    )
+    return response.content[0].text.strip()
+
+
 def ai_edit_full(content: str, instruction: str) -> str:
     """Apply a targeted edit to the full post content.
 

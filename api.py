@@ -609,6 +609,33 @@ def api_ai_edit(post_id: int, body: AiEditRequest, _: str = Depends(require_auth
     return {"edited_content": edited}
 
 
+class SocialAiEditRequest(BaseModel):
+    content: str
+    instruction: str
+    platform: str | None = None
+
+
+@app.post("/api/social/ai-edit")
+def api_social_ai_edit(body: SocialAiEditRequest, _: str = Depends(require_auth)):
+    """Apply a targeted AI edit to a social post's content (X/Threads/LinkedIn/Reddit).
+    Stateless: takes content + instruction, returns edited content. The client writes
+    it back into the editor and saves via the platform's normal save flow."""
+    from src.ai_editor import ai_edit_social
+    content = (body.content or "").strip()
+    instruction = (body.instruction or "").strip()
+    if not content:
+        raise HTTPException(400, "Content is empty")
+    if not instruction:
+        raise HTTPException(400, "Instruction is empty")
+    try:
+        edited = ai_edit_social(content, instruction, platform=body.platform)
+    except Exception as e:
+        if "overloaded_error" in str(e):
+            raise HTTPException(503, "Claude API is busy right now — please try again in a few seconds")
+        raise HTTPException(500, f"AI edit failed: {e}")
+    return {"edited_content": edited}
+
+
 # ── Generate ──────────────────────────────────────────────────────────────────
 
 class GenerateRequest(BaseModel):

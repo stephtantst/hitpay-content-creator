@@ -2858,6 +2858,7 @@
           <div class="meta-section-title">Actions</div>
           <div class="action-buttons">
             <button class="btn btn-primary" id="xSaveBtn" onclick="saveXPost()">↑ Save Changes</button>
+            <button class="btn btn-secondary" onclick="openSocialAiEditModal('x')">✦ AI Edit</button>
             <button class="btn btn-danger" onclick="deleteXPost()">✕ Delete Post</button>
           </div>
           <button class="btn" onclick="navigator.clipboard.writeText(currentXPost?.content || '').then(() => showToast('Copied to clipboard', 'success'))" style="width:100%;margin-top:8px;font-size:13px;">⎘ Copy to Clipboard</button>
@@ -3081,6 +3082,7 @@
           <div class="meta-section-title">Actions</div>
           <div class="action-buttons">
             <button class="btn btn-primary" id="thrSaveBtn" onclick="saveThrPost()">↑ Save Changes</button>
+            <button class="btn btn-secondary" onclick="openSocialAiEditModal('threads')">✦ AI Edit</button>
             <button class="btn btn-danger" onclick="deleteThrPost()">✕ Delete Post</button>
           </div>
         </div>
@@ -3304,6 +3306,7 @@
           <div class="meta-section-title">Actions</div>
           <div class="action-buttons">
             <button class="btn btn-primary" id="liSaveBtn" onclick="saveLiPost()">↑ Save Changes</button>
+            <button class="btn btn-secondary" onclick="openSocialAiEditModal('linkedin')">✦ AI Edit</button>
             <button class="btn btn-danger" onclick="deleteLiPost()">✕ Delete Post</button>
           </div>
         </div>
@@ -3543,6 +3546,7 @@
           <div class="meta-section-title">Actions</div>
           <div class="action-buttons">
             <button class="btn btn-primary" id="reSaveBtn" onclick="saveRePost()">↑ Save Changes</button>
+            <button class="btn btn-secondary" onclick="openSocialAiEditModal('reddit')">✦ AI Edit</button>
             <button class="btn btn-danger" onclick="deleteRePost()">✕ Delete Post</button>
           </div>
         </div>
@@ -3881,6 +3885,28 @@
     <div class="modal-actions">
       <button class="btn btn-cancel" onclick="closeAiEditModal()">Cancel</button>
       <button class="btn btn-primary" id="aiEditBtn" onclick="applyAiEdit()">Apply Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Social AI Edit Modal (X / Threads / LinkedIn / Reddit) -->
+<div class="modal-overlay" id="socialAiEditModal">
+  <div class="modal">
+    <div class="modal-title">✦ AI Edit — <span id="socialAiEditPlatform">Post</span></div>
+    <div class="modal-sub">Describe the change. Claude edits this draft's content and applies it in the editor — you still review and Save.</div>
+    <label class="modal-field-label">Edit instruction</label>
+    <textarea
+      class="modal-input"
+      id="socialAiInstruction"
+      rows="3"
+      style="resize:vertical;"
+      placeholder="e.g. Make the hook punchier&#10;e.g. Replace Maya with GCash&#10;e.g. Tighten post 2 to under 400 characters"
+      onkeydown="if((event.metaKey||event.ctrlKey)&&event.key==='Enter') applySocialAiEdit()"
+    ></textarea>
+    <div class="progress-log" id="socialAiEditLog"></div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeSocialAiEditModal()">Cancel</button>
+      <button class="btn btn-primary" id="socialAiEditBtn" onclick="applySocialAiEdit()">Apply Edit</button>
     </div>
   </div>
 </div>
@@ -6505,6 +6531,99 @@ async function applyAiEdit() {
     addLog('✗ ' + err.message, 'log-error');
     btn.disabled = false;
     btn.textContent = 'Apply Edit';
+  }
+}
+
+// ── Social AI Edit (X / Threads / LinkedIn / Reddit) ──────────────────────────
+let _socialAiPlatform = null;
+const _SOCIAL_AI = {
+  x: {
+    label: 'X',
+    ok: () => !!currentXPost,
+    get: () => _getXContent(),
+    set: (c) => { populateXEditor({ ...currentXPost, content: c }); xMarkDirty(); },
+  },
+  threads: {
+    label: 'Threads',
+    ok: () => !!currentThrPost,
+    get: () => _getThrContent(),
+    set: (c) => { populateThrEditor({ ...currentThrPost, content: c }); thrMarkDirty(); },
+  },
+  linkedin: {
+    label: 'LinkedIn',
+    ok: () => !!currentLiPost,
+    get: () => document.getElementById('liContentInput').value,
+    set: (c) => { const ta = document.getElementById('liContentInput'); ta.value = c; autoResizeTa(ta); updateLiCharCount(); liMarkDirty(); },
+  },
+  reddit: {
+    label: 'Reddit (OP body)',
+    ok: () => !!currentRePost,
+    get: () => document.getElementById('reContentInput').value,
+    set: (c) => { const ta = document.getElementById('reContentInput'); ta.value = c; autoResizeTa(ta); updateReCharCount(); reMarkDirty(); },
+  },
+};
+
+function openSocialAiEditModal(platform) {
+  const cfg = _SOCIAL_AI[platform];
+  if (!cfg || !cfg.ok()) { showToast('Open a post first', 'error'); return; }
+  _socialAiPlatform = platform;
+  document.getElementById('socialAiEditPlatform').textContent = cfg.label;
+  document.getElementById('socialAiInstruction').value = '';
+  const log = document.getElementById('socialAiEditLog');
+  log.innerHTML = ''; log.classList.remove('visible');
+  const btn = document.getElementById('socialAiEditBtn');
+  btn.disabled = false; btn.textContent = 'Apply Edit';
+  document.getElementById('socialAiEditModal').classList.add('open');
+  setTimeout(() => document.getElementById('socialAiInstruction').focus(), 150);
+}
+
+function closeSocialAiEditModal() {
+  document.getElementById('socialAiEditModal').classList.remove('open');
+}
+
+async function applySocialAiEdit() {
+  const platform = _socialAiPlatform;
+  const cfg = _SOCIAL_AI[platform];
+  if (!cfg) return;
+  const instruction = document.getElementById('socialAiInstruction').value.trim();
+  if (!instruction) { document.getElementById('socialAiInstruction').focus(); return; }
+  const content = (cfg.get() || '').trim();
+  if (!content) { showToast('Nothing to edit', 'error'); return; }
+
+  const btn = document.getElementById('socialAiEditBtn');
+  const log = document.getElementById('socialAiEditLog');
+  btn.disabled = true; btn.textContent = 'Applying…';
+  log.innerHTML = ''; log.classList.add('visible');
+  const addLog = (msg, cls = '') => {
+    const line = document.createElement('div');
+    line.className = `log-line ${cls}`;
+    line.textContent = msg;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  };
+  addLog('→ Editing with Claude…');
+
+  try {
+    const res = await fetch('/api/social/ai-edit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, instruction, platform }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      addLog('✗ ' + (err.detail || 'Edit failed'), 'log-error');
+      btn.disabled = false; btn.textContent = 'Apply Edit';
+      return;
+    }
+    const data = await res.json();
+    if (data.edited_content != null) {
+      cfg.set(data.edited_content);
+      addLog('✓ Applied — review and Save Changes', 'log-done');
+    }
+    setTimeout(() => closeSocialAiEditModal(), 700);
+  } catch (err) {
+    addLog('✗ ' + (err.message || 'Edit failed'), 'log-error');
+    btn.disabled = false; btn.textContent = 'Apply Edit';
   }
 }
 
