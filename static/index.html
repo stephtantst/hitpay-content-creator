@@ -2730,7 +2730,7 @@
       <div id="xOverviewCalView" style="display:flex;" class="cal-wrap">
         <div class="cal-draft-sidebar">
           <div class="cal-draft-sidebar-header">
-            Unscheduled Drafts
+            Drafts
             <span class="cal-draft-count" id="xCalDraftCount">0</span>
           </div>
           <div class="cal-draft-list" id="xCalDraftList"></div>
@@ -2971,7 +2971,7 @@
       <div id="thrOverviewCalView" style="display:flex;" class="cal-wrap">
         <div class="cal-draft-sidebar">
           <div class="cal-draft-sidebar-header">
-            Unscheduled Drafts
+            Drafts
             <span class="cal-draft-count" id="thrCalDraftCount">0</span>
           </div>
           <div class="cal-draft-list" id="thrCalDraftList"></div>
@@ -3196,7 +3196,7 @@
       <div id="liOverviewCalView" style="display:flex;" class="cal-wrap">
         <div class="cal-draft-sidebar">
           <div class="cal-draft-sidebar-header">
-            Unscheduled Drafts
+            Drafts
             <span class="cal-draft-count" id="liCalDraftCount">0</span>
           </div>
           <div class="cal-draft-list" id="liCalDraftList"></div>
@@ -3418,7 +3418,7 @@
       <div id="reOverviewCalView" style="display:flex;" class="cal-wrap">
         <div class="cal-draft-sidebar">
           <div class="cal-draft-sidebar-header">
-            Unscheduled Drafts
+            Drafts
             <span class="cal-draft-count" id="reCalDraftCount">0</span>
           </div>
           <div class="cal-draft-list" id="reCalDraftList"></div>
@@ -3721,7 +3721,7 @@
       <div id="socialCalOverviewCalView" style="display:flex; height:100%;" class="cal-wrap">
         <div class="cal-draft-sidebar">
           <div class="cal-draft-sidebar-header">
-            Unscheduled Drafts
+            Drafts
             <span class="cal-draft-count" id="socialCalDraftCount">0</span>
           </div>
           <div class="cal-draft-list" id="socialCalDraftList"></div>
@@ -11136,7 +11136,7 @@ function socialCalEventChipHtml(p) {
 
 function renderSocialCalDraftSidebar() {
   const allPosts = socialCalGetAllPosts();
-  const drafts = allPosts.filter(p => p.status === 'draft' && !p.scheduled_at);
+  const drafts = allPosts.filter(p => p.status === 'draft');
   const countEl = document.getElementById('socialCalDraftCount');
   const listEl = document.getElementById('socialCalDraftList');
   if (countEl) countEl.textContent = drafts.length;
@@ -11171,6 +11171,7 @@ function renderSocialCalView() {
   const allPosts = socialCalGetAllPosts();
   const postMap = new Map();
   allPosts.forEach(p => {
+    if (p.status !== 'scheduled' && p.status !== 'posted') return;  // calendar = locked-in only
     const ts = p.scheduled_at || p.posted_at;
     if (!ts) return;
     const key = calDateKey(new Date(ts));
@@ -11260,6 +11261,7 @@ function calDateKey(d) {
 function calBuildPostMap(posts) {
   const map = new Map();
   posts.forEach(p => {
+    if (p.status !== 'scheduled' && p.status !== 'posted') return;  // calendar = locked-in only
     const ts = p.scheduled_at || p.posted_at;
     if (!ts) return;
     const key = calDateKey(new Date(ts));
@@ -11317,7 +11319,7 @@ function setReCalViewMode(v)  { reCalViewMode  = v; renderCalView('re'); }
 
 function renderCalDraftSidebar(platform) {
   const pfx = calPfx(platform);
-  const drafts = calGetPosts(platform).filter(p => p.status === 'draft' && !p.scheduled_at);
+  const drafts = calGetPosts(platform).filter(p => p.status === 'draft');
   const countEl = document.getElementById(`${pfx}CalDraftCount`);
   const listEl  = document.getElementById(`${pfx}CalDraftList`);
   if (!countEl || !listEl) return;
