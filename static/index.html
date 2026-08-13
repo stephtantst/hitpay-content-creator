@@ -647,6 +647,10 @@
       transition: opacity 0.2s;
     }
     .modal-overlay.open { opacity: 1; pointer-events: all; }
+    /* Social AI Edit is opened from within an editor that renders as a fixed
+       modal (.as-modal, z-index 401 over a 400 backdrop), so it must sit above
+       that or it opens invisibly behind the editor. */
+    #socialAiEditModal { z-index: 500; }
     .modal {
       background: var(--surface);
       border: 1px solid var(--border);

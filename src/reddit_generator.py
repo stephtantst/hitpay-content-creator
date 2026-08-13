@@ -14,6 +14,7 @@ subreddit, and reply live in dedicated columns.
 Voice rules below are lifted from the r/HitPay_official daily-post playbook.
 """
 import json
+import random
 import re
 
 import anthropic
@@ -110,6 +111,52 @@ OUTPUT FORMAT — single raw JSON object, no fences, no preamble:
 }"""
 
 
+# ── Anti-repetition variety seed ──────────────────────────────────────────────
+# Without this, generations reconverge on the same "so i run a small shop near
+# <place>" opening. Each call injects a random opening style + a fresh business/
+# neighbourhood persona so the OP framing varies while the blog facts stay fixed.
+
+_OPENING_STYLES = [
+    "Open MID-SCENE: a specific customer or a specific moment at your counter or on your phone. Do not start by describing your business.",
+    "Open with a specific number or cost you only recently noticed when you actually sat down and looked.",
+    "Open with an exact question a customer asked you that you couldn't answer well.",
+    "Open with something that changed for your business in the last few weeks.",
+    "Open with a small confession: something you assumed or got wrong at first.",
+    "Open with a late-night comparison you were doing between options.",
+    "Open with a specific physical object, like a QR sticker, a notebook, a card terminal, or a phone screen.",
+    "Open with a specific day or moment (a busy Saturday, the end of the month, a slow Tuesday).",
+]
+
+_BUSINESS_TYPES = [
+    "a home bakery", "a bubble tea kiosk", "a secondhand bookshop", "an indoor plant shop",
+    "a small print shop", "a bike repair corner", "a vintage clothing store", "a coffee cart",
+    "a nail salon", "a weekend food stall", "a stationery shop", "a barbershop",
+    "a skincare brand run from home", "a pet grooming shop", "a hardware store",
+    "a florist", "a small online snack brand", "a pottery studio", "a tuition centre",
+    "a phone-accessories stall",
+]
+
+_NEIGHBOURHOODS = {
+    "SG": ["Tiong Bahru", "Geylang", "Toa Payoh", "Katong", "Ang Mo Kio", "Tampines", "Jurong", "Bedok"],
+    "MY": ["Bangsar", "SS15 Subang", "Cheras", "George Town", "Petaling Jaya", "Johor Bahru", "Ipoh", "Mont Kiara"],
+    "PH": ["Cubao", "Marikina", "Cebu", "Davao", "Alabang", "Pasig", "Quezon City", "Mandaluyong"],
+}
+
+
+def _variety_seed(market: str) -> str:
+    opening = random.choice(_OPENING_STYLES)
+    biz = random.choice(_BUSINESS_TYPES)
+    hoods = _NEIGHBOURHOODS.get((market or "").upper())
+    area = random.choice(hoods) if hoods else None
+    persona = f"{biz}" + (f" in/around {area}" if area else "")
+    return (
+        "VARIETY (make THIS post distinct from previous ones):\n"
+        f"- Persona seed for this post: {persona}. Use it only if it fits the blog topic; otherwise pick a different, equally specific small business — never default to a generic 'gift and lifestyle shop'.\n"
+        f"- Opening instruction: {opening}\n"
+        "- BANNED openers (do NOT start with any of these): 'so i run a...', 'i run a small...', 'i've been running...', 'i own a small shop near...'. Vary sentence one every time."
+    )
+
+
 def _build_reddit_prompt(post: dict, market: str, brand: str) -> str:
     market_name = _MARKET_NAMES.get((market or "").upper(), "Southeast Asia (SG/MY/PH)")
     slang = _MARKET_SLANG.get((market or "").upper(), "Plain, clean English. No forced local slang.")
@@ -120,6 +167,8 @@ POST TITLE: {post.get("title", "")}
 PRIMARY KEYWORD: {post.get("keyword", "")}
 TARGET MARKET: {market_name}
 SLANG REGISTER FOR THIS MARKET: {slang}
+
+{_variety_seed(market)}
 
 FULL SOURCE CONTENT:
 {post.get("content", "")}
