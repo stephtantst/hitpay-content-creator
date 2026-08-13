@@ -45,6 +45,7 @@ PART 1 — THE OP (title + body):
 - Written entirely in the voice of a REAL SME owner/merchant in the target market. First person.
 - NO HitPay branding in the body. Do NOT name HitPay, do NOT name any product, do NOT pitch. The OP is a merchant telling a small, true-feeling story or asking a genuine question rooted in a real operational problem.
 - Casual and warm. Lowercase-casual is fine. Short run-ons joined with "and" are fine. Humble closer.
+- LENGTH: keep the OP body to 2-3 short paragraphs MAXIMUM. Tight and readable — a real Reddit post, not an essay. Do not pad.
 - Ground it in the concrete facts from the blog post: the actual payment methods, fees, timelines, and market realities — but told as lived experience, not as a listicle.
 - Include an honest limitation or a moment of doubt. Real merchants are not sure of everything.
 - COLD-START RULE: the post must stand on its own. Do NOT end on an open-ended "what do you all think?" / "anyone else?" fishing-for-replies question. Land on the merchant's own experience or a quiet resolution.
@@ -86,6 +87,7 @@ Turn the article into ONE Reddit deliverable of two parts.
 
 PART 1 — THE OP (title + body):
 - Voice of a real SME owner/operator in the target market. First person, casual, warm, humble.
+- LENGTH: keep the OP body to 2-3 short paragraphs MAXIMUM. Tight and readable — a real Reddit post, not an essay.
 - Grounded in the article's concrete facts, told as lived experience — not a listicle.
 - Include an honest limitation. The post must stand alone (no open-ended reply-fishing).
 - No brand names in the body.
