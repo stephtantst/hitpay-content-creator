@@ -6266,6 +6266,8 @@ function renderListView(filtered) {
             <button class="tbl-action-menu-item" onclick="openPost(${p.id});closeTblActionMenus()">Edit</button>
             <button class="tbl-action-menu-item" onclick="tblRepurposeX(${p.id})">Repurpose for X</button>
             <button class="tbl-action-menu-item" onclick="tblRepurposeThreads(${p.id})">Repurpose for Threads</button>
+            <button class="tbl-action-menu-item" onclick="tblRepurposeLinkedin(${p.id})">Repurpose for LinkedIn</button>
+            <button class="tbl-action-menu-item" onclick="tblRepurposeReddit(${p.id})">Repurpose for Reddit</button>
           </div>
         </div>
       </td>
@@ -6818,6 +6820,31 @@ async function tblRepurposeThreads(postId) {
   closeTblActionMenus();
   await openPost(postId);
   openRepurposeModal();
+}
+async function _tblRepurposeSingle(postId, endpoint, idKey, platform, openFn, label) {
+  closeTblActionMenus();
+  showToast(`Generating ${label} draft…`);
+  try {
+    const res = await fetch(`/api/posts/${postId}/${endpoint}`, { method: 'POST' });
+    if (!res.ok) {
+      let msg = `${label} repurpose failed`;
+      try { const e = await res.json(); if (e.detail) msg = e.detail; } catch (_) {}
+      showToast(msg, 'error');
+      return;
+    }
+    const data = await res.json();
+    showToast(`${label} draft created — opening editor`, 'success');
+    switchPlatform(platform);
+    openFn(data[idKey]);
+  } catch (e) {
+    showToast(`${label} repurpose failed`, 'error');
+  }
+}
+function tblRepurposeLinkedin(postId) {
+  _tblRepurposeSingle(postId, 'repurpose-linkedin', 'linkedin_id', 'linkedin', openLiPostFromOverview, 'LinkedIn');
+}
+function tblRepurposeReddit(postId) {
+  _tblRepurposeSingle(postId, 'repurpose-reddit', 'reddit_id', 'reddit', openRePostFromOverview, 'Reddit');
 }
 document.addEventListener('click', () => closeTblActionMenus());
 

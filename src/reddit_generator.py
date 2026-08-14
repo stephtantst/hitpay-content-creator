@@ -174,9 +174,25 @@ def _variety_seed(market: str) -> str:
     )
 
 
-def _build_reddit_prompt(post: dict, market: str, brand: str) -> str:
+def _build_reddit_prompt(post: dict, market: str, brand: str, from_topic: bool = False) -> str:
     market_name = _MARKET_NAMES.get((market or "").upper(), "Southeast Asia (SG/MY/PH)")
     slang = _MARKET_SLANG.get((market or "").upper(), "Plain, clean English. No forced local slang.")
+
+    if from_topic:
+        # No blog article — generate a realistic post from just a topic hint.
+        topic = (post.get("title") or post.get("keyword") or "").strip()
+        return f"""Write ONE Reddit deliverable (OP + reply) for a {market_name} SME merchant, about this TOPIC.
+
+TOPIC: {topic}
+TARGET MARKET: {market_name}
+SLANG REGISTER FOR THIS MARKET: {slang}
+
+{_variety_seed(market)}
+
+There is NO source article here — construct a realistic, specific merchant scenario around the topic. Ground the OP in believable day-to-day detail for a {market_name} business. In the HitPay reply, speak generally and accurately about the relevant HitPay capability, but do NOT invent specific rates, fees, or percentages you are not sure of — keep numbers vague ("no monthly fee", "next business day") rather than precise.
+
+Return the JSON object following the output format exactly — nothing else."""
+
     source_label = "SME Growth Hub article" if brand == "smegrowthhub" else "HitPay blog post"
     return f"""Repurpose the following {source_label} into ONE Reddit deliverable (OP + reply).
 
@@ -193,8 +209,8 @@ FULL SOURCE CONTENT:
 Write the OP as a real merchant in {market_name}. Keep all product facts, fees, and methods drawn only from the source content above. Return the JSON object following the output format exactly."""
 
 
-def generate_reddit_post(post: dict, market: str = None, brand: str = "hitpay") -> dict:
-    """Repurpose a blog post into a Reddit OP + HitPay reply.
+def generate_reddit_post(post: dict, market: str = None, brand: str = "hitpay", from_topic: bool = False) -> dict:
+    """Repurpose a blog post (or generate from a topic hint) into a Reddit OP + HitPay reply.
 
     Returns: {"subreddit", "title", "content", "reply_comment", "visual_note", "usage"}
     """
@@ -208,10 +224,12 @@ def generate_reddit_post(post: dict, market: str = None, brand: str = "hitpay") 
         model=CLAUDE_MODEL,
         max_tokens=2000,
         system=system,
-        messages=[{"role": "user", "content": _build_reddit_prompt(post, market, brand)}],
+        messages=[{"role": "user", "content": _build_reddit_prompt(post, market, brand, from_topic=from_topic)}],
     )
 
-    raw = msg.content[0].text.strip()
+    raw = (msg.content[0].text if msg.content else "").strip()
+    if not raw:
+        raise ValueError("Reddit generation returned an empty response — please try again")
     match = re.search(r"\{.*\}", raw, re.DOTALL)
     if match:
         raw = match.group(0)
@@ -226,7 +244,8 @@ def generate_reddit_post(post: dict, market: str = None, brand: str = "hitpay") 
             from json_repair import repair_json
             data = json.loads(repair_json(raw))
         except Exception as e:
-            raise ValueError(f"Could not parse Reddit response: {e}")
+            snippet = raw[:200].replace("\n", " ")
+            raise ValueError(f"Could not parse Reddit response ({e}). Model returned: {snippet!r}")
 
     content = (data.get("content") or "").strip()
     if not content:

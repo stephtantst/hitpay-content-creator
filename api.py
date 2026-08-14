@@ -1718,6 +1718,7 @@ def api_generate_reddit_post(body: GenerateRedditPostRequest, _: str = Depends(r
     """Generate a Reddit OP + HitPay reply. Grounds on a real blog post when
     source_blog_post_id is given; otherwise uses topic_hint as the seed."""
     from src.reddit_generator import generate_reddit_post
+    from_topic = False
     if body.source_blog_post_id:
         post = get_post(body.source_blog_post_id)
         if not post:
@@ -1728,8 +1729,9 @@ def api_generate_reddit_post(body: GenerateRedditPostRequest, _: str = Depends(r
             raise HTTPException(422, "Provide a topic_hint or a source_blog_post_id")
         post = {"title": hint, "keyword": hint, "content": hint,
                 "country": body.market or "", "brand": body.brand}
+        from_topic = True
     try:
-        result = generate_reddit_post(post, market=body.market or None, brand=body.brand)
+        result = generate_reddit_post(post, market=body.market or None, brand=body.brand, from_topic=from_topic)
     except ValueError as e:
         raise HTTPException(422, str(e))
     except Exception as e:
@@ -2054,6 +2056,40 @@ def api_get_social_posts(post_id: int, user_email: str = Depends(require_auth)):
         "linkedin": safe(get_linkedin_posts_by_blog_post_id, post_id),
         "reddit": safe(get_reddit_posts_by_blog_post_id, post_id),
     }
+
+
+@app.post("/api/posts/{post_id}/repurpose-linkedin")
+def api_repurpose_linkedin(post_id: int, user_email: str = Depends(require_auth)):
+    """Generate a single LinkedIn draft from a blog post, save it linked to the
+    post, and return its id."""
+    from src.linkedin_generator import generate_linkedin_post
+    post = get_post(post_id)
+    if not post:
+        raise HTTPException(404, "Post not found")
+    market = (post.get("country") or "SG") or "SG"
+    brand = post.get("brand", "hitpay")
+    topic_hint = (post.get("title") or "")[:150]
+    try:
+        result = generate_linkedin_post(market=market, topic_hint=topic_hint, brand=brand)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    except Exception as e:
+        if "overloaded_error" in str(e):
+            raise HTTPException(503, "Claude API is busy right now — please try again in a few seconds")
+        raise HTTPException(500, f"Generation error: {e}")
+    content = (result.get("content") or "").strip()
+    if not content:
+        raise HTTPException(422, "LinkedIn generation returned empty content")
+    linkedin_id = create_linkedin_post(
+        content=content,
+        market=market,
+        editor_email=user_email,
+        source_blog_post_id=post_id,
+        brand=brand,
+    )
+    log_linkedin_audit(linkedin_id, user_email, "created", {"source": "repurpose-linkedin"})
+    log_audit(post_id, user_email, "repurposed", {"platform": "linkedin", "linkedin_id": linkedin_id})
+    return {"ok": True, "linkedin_id": linkedin_id}
 
 
 @app.post("/api/posts/{post_id}/repurpose-reddit")
