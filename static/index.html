@@ -3507,18 +3507,12 @@
             </div>
             <div class="x-editor-header" style="margin-bottom:6px;">
               <span>OP body <span style="font-weight:400;color:var(--text-dim);">— merchant voice, no HitPay branding</span></span>
-              <span style="display:inline-flex;gap:8px;align-items:center;">
-                <button class="btn btn-secondary" style="font-size:11px;padding:2px 8px;" onclick="openSocialAiEditModal('reddit_body')">✦ AI Edit</button>
-                <span class="x-char-count" id="reCharCount">0</span>
-              </span>
+              <span class="x-char-count" id="reCharCount">0</span>
             </div>
             <textarea class="x-textarea" id="reContentInput" placeholder="Write the post as a real merchant in this market. No HitPay branding, honest limitation, stands alone…" oninput="reMarkDirty(); updateReCharCount(); autoResizeTa(this)" style="min-height:150px;"></textarea>
             <div class="x-editor-header" style="margin:14px 0 6px;">
               <span>HitPay reply comment <span style="font-weight:400;color:var(--text-dim);">— verified-account voice, plain &amp; honest</span></span>
-              <span style="display:inline-flex;gap:8px;align-items:center;">
-                <button class="btn btn-secondary" style="font-size:11px;padding:2px 8px;" onclick="openSocialAiEditModal('reddit_reply')">✦ AI Edit</button>
-                <span class="x-char-count" id="reReplyCharCount">0</span>
-              </span>
+              <span class="x-char-count" id="reReplyCharCount">0</span>
             </div>
             <textarea class="x-textarea" id="reReplyInput" placeholder="A separate reply from the verified HitPay account. Plain, helpful, localized, honest about limits…" oninput="reMarkDirty(); updateReCharCount(); autoResizeTa(this)" style="min-height:120px;border-left:3px solid #FF4500;"></textarea>
           </div>
@@ -3556,6 +3550,8 @@
           <div class="meta-section-title">Actions</div>
           <div class="action-buttons">
             <button class="btn btn-primary" id="reSaveBtn" onclick="saveRePost()">↑ Save Changes</button>
+            <button class="btn btn-secondary" onclick="openSocialAiEditModal('reddit_body')">✦ AI Edit — OP body</button>
+            <button class="btn btn-secondary" onclick="openSocialAiEditModal('reddit_reply')">✦ AI Edit — HitPay reply</button>
             <button class="btn btn-danger" onclick="deleteRePost()">✕ Delete Post</button>
           </div>
         </div>
