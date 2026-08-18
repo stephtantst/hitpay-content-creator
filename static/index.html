@@ -2833,14 +2833,15 @@
         <div class="meta-section">
           <div class="meta-section-title">Status</div>
           <div id="xStatusBadge" class="x-status-badge draft">📝 Draft</div>
+          <div id="xScheduleReadout" style="font-size:12px;color:var(--text-dim);margin:6px 0 8px;line-height:1.4;"></div>
           <select class="status-select" id="xStatusSelect" onchange="handleXStatusChange(this.value)">
             <option value="draft">📝 Draft</option>
             <option value="scheduled">🕐 Scheduled</option>
             <option value="posted">✅ Posted</option>
           </select>
-          <div id="xScheduledSection" style="display:none; margin-top:10px;">
-            <div class="field-label">Scheduled date &amp; time</div>
-            <input class="field-input" id="xScheduledAt" type="datetime-local" oninput="xMarkDirty()" />
+          <div id="xScheduledSection" style="margin-top:10px;">
+            <div class="field-label">Scheduled date &amp; time <span style="font-weight:400;color:var(--text-dim);">(set status to Scheduled to lock it in)</span></div>
+            <input class="field-input" id="xScheduledAt" type="datetime-local" oninput="xMarkDirty(); updateXScheduleReadout()" />
           </div>
           <div id="xPostedSection" style="display:none; margin-top:10px;">
             <div class="field-label">Tweet URL (optional)</div>
@@ -3059,14 +3060,15 @@
         <div class="meta-section">
           <div class="meta-section-title">Status</div>
           <div id="thrStatusBadge" class="x-status-badge draft">📝 Draft</div>
+          <div id="thrScheduleReadout" style="font-size:12px;color:var(--text-dim);margin:6px 0 8px;line-height:1.4;"></div>
           <select class="status-select" id="thrStatusSelect" onchange="handleThrStatusChange(this.value)">
             <option value="draft">📝 Draft</option>
             <option value="scheduled">🕐 Scheduled</option>
             <option value="posted">✅ Posted</option>
           </select>
-          <div id="thrScheduledSection" style="display:none; margin-top:10px;">
-            <div class="field-label">Scheduled date &amp; time</div>
-            <input class="field-input" id="thrScheduledAt" type="datetime-local" oninput="thrMarkDirty()" />
+          <div id="thrScheduledSection" style="margin-top:10px;">
+            <div class="field-label">Scheduled date &amp; time <span style="font-weight:400;color:var(--text-dim);">(set status to Scheduled to lock it in)</span></div>
+            <input class="field-input" id="thrScheduledAt" type="datetime-local" oninput="thrMarkDirty(); updateThrScheduleReadout()" />
           </div>
           <div id="thrPostedSection" style="display:none; margin-top:10px;">
             <div class="field-label">Post URL (optional)</div>
@@ -3283,14 +3285,15 @@
         <div class="meta-section">
           <div class="meta-section-title">Status</div>
           <div id="liStatusBadge" class="x-status-badge draft">📝 Draft</div>
+          <div id="liScheduleReadout" style="font-size:12px;color:var(--text-dim);margin:6px 0 8px;line-height:1.4;"></div>
           <select class="status-select" id="liStatusSelect" onchange="handleLiStatusChange(this.value)">
             <option value="draft">📝 Draft</option>
             <option value="scheduled">🕐 Scheduled</option>
             <option value="posted">✅ Posted</option>
           </select>
-          <div id="liScheduledSection" style="display:none; margin-top:10px;">
-            <div class="field-label">Scheduled date &amp; time</div>
-            <input class="field-input" id="liScheduledAt" type="datetime-local" oninput="liMarkDirty()" />
+          <div id="liScheduledSection" style="margin-top:10px;">
+            <div class="field-label">Scheduled date &amp; time <span style="font-weight:400;color:var(--text-dim);">(set status to Scheduled to lock it in)</span></div>
+            <input class="field-input" id="liScheduledAt" type="datetime-local" oninput="liMarkDirty(); updateLiScheduleReadout()" />
           </div>
           <div id="liPostedSection" style="display:none; margin-top:10px;">
             <div class="field-label">Post URL (optional)</div>
@@ -8891,6 +8894,7 @@ function populateXEditor(post) {
   badge.textContent = labels[post.status] || post.status;
   badge.className = `x-status-badge ${post.status || 'draft'}`;
   document.getElementById('xStatusSelect').value = post.status || 'draft';
+  updateXScheduleReadout();
 
   loadXAuditLog(post.id);
 
@@ -8899,12 +8903,31 @@ function populateXEditor(post) {
 
 
 function toggleXStatusFields(status) {
-  document.getElementById('xScheduledSection').style.display = status === 'scheduled' ? 'block' : 'none';
+  document.getElementById('xScheduledSection').style.display = 'block';
   document.getElementById('xPostedSection').style.display = status === 'posted' ? 'block' : 'none';
+}
+
+function updateXScheduleReadout() {
+  const el = document.getElementById('xScheduleReadout');
+  if (!el) return;
+  const status = document.getElementById('xStatusSelect').value;
+  const dtVal = document.getElementById('xScheduledAt').value;
+  const postedAt = currentXPost && currentXPost.posted_at;
+  const fmt = (v) => new Date(v).toLocaleString('en-SG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  if (status === 'posted') {
+    el.textContent = postedAt ? `✅ Posted ${fmt(postedAt)}` : '✅ Marked posted';
+  } else if (dtVal) {
+    el.textContent = (status === 'scheduled')
+      ? `🕐 Scheduled for ${fmt(dtVal)} (SGT)`
+      : `🕐 Planned for ${fmt(dtVal)} (SGT) — still a draft, set status to Scheduled to lock it in`;
+  } else {
+    el.textContent = 'No date set yet — pick a date & time, then set status to Scheduled.';
+  }
 }
 
 function handleXStatusChange(status) {
   toggleXStatusFields(status);
+  updateXScheduleReadout();
   xMarkDirty();
 }
 
@@ -9542,6 +9565,7 @@ function populateThrEditor(post) {
   badge.textContent = labels[post.status] || post.status;
   badge.className = `x-status-badge ${post.status || 'draft'}`;
   document.getElementById('thrStatusSelect').value = post.status || 'draft';
+  updateThrScheduleReadout();
 
   loadThrAuditLog(post.id);
 
@@ -9635,12 +9659,31 @@ function updateCreateThrCharCount() {
 }
 
 function toggleThrStatusFields(status) {
-  document.getElementById('thrScheduledSection').style.display = status === 'scheduled' ? 'block' : 'none';
+  document.getElementById('thrScheduledSection').style.display = 'block';
   document.getElementById('thrPostedSection').style.display = status === 'posted' ? 'block' : 'none';
+}
+
+function updateThrScheduleReadout() {
+  const el = document.getElementById('thrScheduleReadout');
+  if (!el) return;
+  const status = document.getElementById('thrStatusSelect').value;
+  const dtVal = document.getElementById('thrScheduledAt').value;
+  const postedAt = currentThrPost && currentThrPost.posted_at;
+  const fmt = (v) => new Date(v).toLocaleString('en-SG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  if (status === 'posted') {
+    el.textContent = postedAt ? `✅ Posted ${fmt(postedAt)}` : '✅ Marked posted';
+  } else if (dtVal) {
+    el.textContent = (status === 'scheduled')
+      ? `🕐 Scheduled for ${fmt(dtVal)} (SGT)`
+      : `🕐 Planned for ${fmt(dtVal)} (SGT) — still a draft, set status to Scheduled to lock it in`;
+  } else {
+    el.textContent = 'No date set yet — pick a date & time, then set status to Scheduled.';
+  }
 }
 
 function handleThrStatusChange(status) {
   toggleThrStatusFields(status);
+  updateThrScheduleReadout();
   thrMarkDirty();
 }
 
@@ -10192,6 +10235,7 @@ function populateLiEditor(post) {
   badge.textContent = labels[post.status] || post.status;
   badge.className = `x-status-badge ${post.status || 'draft'}`;
   document.getElementById('liStatusSelect').value = post.status || 'draft';
+  updateLiScheduleReadout();
 
   loadLiAuditLog(post.id);
 
@@ -10217,12 +10261,31 @@ function updateCreateLiCharCount() {
 }
 
 function toggleLiStatusFields(status) {
-  document.getElementById('liScheduledSection').style.display = status === 'scheduled' ? 'block' : 'none';
+  document.getElementById('liScheduledSection').style.display = 'block';
   document.getElementById('liPostedSection').style.display = status === 'posted' ? 'block' : 'none';
+}
+
+function updateLiScheduleReadout() {
+  const el = document.getElementById('liScheduleReadout');
+  if (!el) return;
+  const status = document.getElementById('liStatusSelect').value;
+  const dtVal = document.getElementById('liScheduledAt').value;
+  const postedAt = currentLiPost && currentLiPost.posted_at;
+  const fmt = (v) => new Date(v).toLocaleString('en-SG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  if (status === 'posted') {
+    el.textContent = postedAt ? `✅ Posted ${fmt(postedAt)}` : '✅ Marked posted';
+  } else if (dtVal) {
+    el.textContent = (status === 'scheduled')
+      ? `🕐 Scheduled for ${fmt(dtVal)} (SGT)`
+      : `🕐 Planned for ${fmt(dtVal)} (SGT) — still a draft, set status to Scheduled to lock it in`;
+  } else {
+    el.textContent = 'No date set yet — pick a date & time, then set status to Scheduled.';
+  }
 }
 
 function handleLiStatusChange(status) {
   toggleLiStatusFields(status);
+  updateLiScheduleReadout();
   liMarkDirty();
 }
 
