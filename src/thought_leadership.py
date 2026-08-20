@@ -817,8 +817,8 @@ def generate_thought_leadership_thread(
 
     Returns: {"topic": str, "tweets": list[str], "link_url": str, "visual_note": str | None}
     """
-    if style not in ("educational", "storytelling"):
-        raise ValueError(f"style must be 'educational' or 'storytelling' — got {style!r}")
+    if style not in ("educational", "storytelling", "opinion", "product"):
+        raise ValueError(f"style must be 'educational', 'storytelling', 'opinion', or 'product' — got {style!r}")
 
     if thread_size not in (1, 2, 3, 5, 7):
         raise ValueError(f"thread_size must be one of (1, 2, 3, 5, 7) — got {thread_size}")
