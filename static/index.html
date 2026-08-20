@@ -2647,6 +2647,7 @@
     <div style="flex:1"></div>
     <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="openEdmModal()" title="Generate social posts from an email newsletter">✉ From EDM</button>
     <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="openChangelogModal('x')" title="Generate posts from HitPay changelog">📋 From Changelog</button>
+    <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="openWeeklyBatchModal()" title="Generate a full week of X + Threads drafts">⚡ Generate Week</button>
     <button class="btn-new-post" onclick="openCreateXModal()">＋ New Post</button>
   </div>
 
@@ -2897,6 +2898,7 @@
     </div>
     <div style="flex:1"></div>
     <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="openChangelogModal('threads')" title="Generate posts from HitPay changelog">📋 From Changelog</button>
+    <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="openWeeklyBatchModal()" title="Generate a full week of X + Threads drafts">⚡ Generate Week</button>
     <button class="btn-new-post" onclick="openCreateThrModal()">＋ New Story</button>
   </div>
 
@@ -4422,6 +4424,30 @@
   </div>
 </div>
 
+<!-- Weekly Batch Modal -->
+<div class="modal-overlay" id="weeklyBatchModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">Generate Week of Drafts</div>
+    <div id="weeklyBatchIntro" style="margin-bottom:18px;font-size:13px;color:var(--text-secondary);">
+      Generates 7 paired X + Threads drafts — one per day (Mon–Sun), same topic per pair, following the day-of-week content schedule. All land in Unscheduled Drafts ready to schedule.
+    </div>
+    <div id="weeklyBatchActions" style="display:flex;gap:8px;">
+      <button class="btn" style="flex:1;" onclick="closeWeeklyBatchModal()">Cancel</button>
+      <button class="btn btn-primary" id="weeklyBatchRunBtn" style="flex:2;" onclick="runWeeklyBatch()">Generate drafts</button>
+    </div>
+    <div id="weeklyBatchLoading" style="display:none;text-align:center;padding:16px 0;">
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:6px;">Generating 7 X + 7 Threads posts…</div>
+      <div style="font-size:12px;color:var(--text-tertiary);">This takes about 30 seconds</div>
+    </div>
+    <div id="weeklyBatchResult" style="display:none;">
+      <div id="weeklyBatchResultContent"></div>
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary" style="width:100%;" onclick="closeWeeklyBatchModal()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Login Overlay -->
 <div id="loginOverlay" style="display:none;">
   <div class="login-card">
@@ -5326,6 +5352,58 @@ function openGenerateModal() {
 
 function closeGenerateModal() {
   document.getElementById('generateModal').classList.remove('open');
+}
+
+function openWeeklyBatchModal() {
+  document.getElementById('weeklyBatchActions').style.display = 'flex';
+  document.getElementById('weeklyBatchLoading').style.display = 'none';
+  document.getElementById('weeklyBatchResult').style.display = 'none';
+  document.getElementById('weeklyBatchResultContent').innerHTML = '';
+  document.getElementById('weeklyBatchModal').classList.add('open');
+}
+
+function closeWeeklyBatchModal() {
+  document.getElementById('weeklyBatchModal').classList.remove('open');
+}
+
+async function runWeeklyBatch() {
+  document.getElementById('weeklyBatchActions').style.display = 'none';
+  document.getElementById('weeklyBatchLoading').style.display = 'block';
+  document.getElementById('weeklyBatchResult').style.display = 'none';
+  try {
+    const res = await fetch('/api/generate-weekly-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brand: activeBrand }),
+    });
+    const data = await res.json();
+    document.getElementById('weeklyBatchLoading').style.display = 'none';
+    document.getElementById('weeklyBatchResult').style.display = 'block';
+    if (!res.ok) {
+      document.getElementById('weeklyBatchResultContent').innerHTML =
+        `<div style="color:var(--error);font-size:13px;">${data.detail || 'Generation failed. Please try again.'}</div>`;
+    } else {
+      const xCount = data.x?.total || 0;
+      const thrCount = data.threads?.total || 0;
+      const errors = data.errors || [];
+      let html = `<div style="font-size:13px;margin-bottom:10px;">
+        Created <strong>${xCount} X</strong> and <strong>${thrCount} Threads</strong> drafts.</div>`;
+      if (errors.length) {
+        html += `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">${errors.length} post(s) had errors:</div>`;
+        errors.forEach(e => {
+          html += `<div style="font-size:12px;color:var(--error);margin-bottom:4px;">${e.platform ?? ''} ${e.content_type ?? ''}: ${e.error}</div>`;
+        });
+      }
+      document.getElementById('weeklyBatchResultContent').innerHTML = html;
+      if (typeof loadXPosts === 'function') loadXPosts();
+      if (typeof loadThrPosts === 'function') loadThrPosts();
+    }
+  } catch (err) {
+    document.getElementById('weeklyBatchLoading').style.display = 'none';
+    document.getElementById('weeklyBatchResult').style.display = 'block';
+    document.getElementById('weeklyBatchResultContent').innerHTML =
+      `<div style="color:var(--error);font-size:13px;">Network error: ${err.message}</div>`;
+  }
 }
 
 function minimizeGenerate() {

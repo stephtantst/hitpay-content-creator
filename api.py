@@ -2726,29 +2726,16 @@ def api_automation_weekly_post(request: Request, dry_run: bool = True):
     }
 
 
-@app.post("/api/automation/generate-weekly-drafts")
-def api_generate_weekly_drafts(request: Request):
-    """Generate 7 paired X+Threads drafts (one pair per day, same topic per pair).
-
-    Each day's X and Threads post share the same topic_hint and market so the
-    daily content is thematically aligned across platforms.
-
-    Called by GitHub Actions on Sunday. Posts land in Unscheduled Drafts for
-    manual scheduling via the calendar drag-and-drop.
+def _run_weekly_batch(user_email: str, brand: str = "hitpay") -> dict:
+    """Generate 7 paired X+Threads drafts (one per day Mon–Sun, same topic per pair).
+    Shared between the automation endpoint and the UI endpoint.
     """
-    key = request.headers.get("X-Automation-Key", "")
-    if not key or not AUTOMATION_SECRET or key != AUTOMATION_SECRET:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
     import threading
     from src.thought_leadership import generate_random_x_post, HITPAY_TOPIC_POOL, CONTENT_TYPE_BY_WEEKDAY
     from src.threads_thought_leadership import generate_threads_story
 
     _MARKETS = ["SG", "MY", "PH", None]
-    # One post per day (Mon–Sun) following the day-of-week schedule:
-    # product_focus × 3 (Mon/Thu/Sun), thought_leadership × 3 (Tue/Fri/Sat), merchant_story × 1 (Wed)
     content_types = list(CONTENT_TYPE_BY_WEEKDAY.values())
-    # Threads thread size per X content type
     _THREADS_SIZE_BY_CONTENT_TYPE = {
         "thought_leadership": 1,
         "product_focus": 3,
@@ -2765,20 +2752,19 @@ def api_generate_weekly_drafts(request: Request):
         topic = random.choice(HITPAY_TOPIC_POOL)
         thread_size = _THREADS_SIZE_BY_CONTENT_TYPE.get(content_type, 3)
 
-        # --- X ---
-        actual_topic = topic  # may be overridden by blog repurpose path
+        actual_topic = topic
         try:
-            data = generate_random_x_post(market=market, topic_hint=topic, brand="hitpay", content_type=content_type)
-            actual_topic = data.get("topic") or topic  # use X's resolved topic for Threads
+            data = generate_random_x_post(market=market, topic_hint=topic, brand=brand, content_type=content_type)
+            actual_topic = data.get("topic") or topic
             link = data.get("link_url") or ""
             content = "\n\n---\n\n".join(_cap_tweet(t.replace("[URL]", link)) for t in data["tweets"])
             post_id = create_x_post(
                 content=content,
                 market=data.get("market") or market,
-                editor_email="automation@hit-pay.com",
-                brand="hitpay",
+                editor_email=user_email,
+                brand=brand,
             )
-            log_x_audit(post_id, "automation@hit-pay.com", "created", {
+            log_x_audit(post_id, user_email, "created", {
                 "source": "weekly_batch", "content_type": content_type,
                 "market": data.get("market") or market or "", "topic": actual_topic,
             })
@@ -2788,19 +2774,18 @@ def api_generate_weekly_drafts(request: Request):
             with lock:
                 errors.append({"platform": "x", "content_type": content_type, "error": str(e)})
 
-        # --- Threads — same topic + market as X ---
         try:
-            data = generate_threads_story(market=market, topic_hint=actual_topic, brand="hitpay", thread_size=thread_size)
+            data = generate_threads_story(market=market, topic_hint=actual_topic, brand=brand, thread_size=thread_size)
             link = data.get("link_url") or ""
             posts = data.get("posts", [])
             content = "\n\n---\n\n".join(p.replace("[URL]", link) for p in posts)
             post_id = create_threads_post(
                 content=content,
                 market=data.get("market") or market,
-                editor_email="automation@hit-pay.com",
-                brand="hitpay",
+                editor_email=user_email,
+                brand=brand,
             )
-            log_threads_audit(post_id, "automation@hit-pay.com", "created", {
+            log_threads_audit(post_id, user_email, "created", {
                 "source": "weekly_batch", "thread_size": thread_size,
                 "market": data.get("market") or market or "", "topic": actual_topic,
                 "content_type": content_type,
@@ -2820,6 +2805,25 @@ def api_generate_weekly_drafts(request: Request):
         "threads": {"generated": thr_results, "total": len(thr_results)},
         "errors": errors,
     }
+
+
+@app.post("/api/automation/generate-weekly-drafts")
+def api_generate_weekly_drafts(request: Request):
+    """Generate 7 paired X+Threads drafts. Called by GitHub Actions on Sunday."""
+    key = request.headers.get("X-Automation-Key", "")
+    if not key or not AUTOMATION_SECRET or key != AUTOMATION_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return _run_weekly_batch(user_email="automation@hit-pay.com")
+
+
+class WeeklyBatchRequest(BaseModel):
+    brand: str = "hitpay"
+
+
+@app.post("/api/generate-weekly-batch")
+def api_generate_weekly_batch_ui(body: WeeklyBatchRequest, user_email: str = Depends(require_auth)):
+    """UI-accessible weekly batch generator. Generates 7 paired X+Threads drafts as unscheduled drafts."""
+    return _run_weekly_batch(user_email=user_email, brand=body.brand)
 
 
 # ── YouTube description generator ───────────────────────────────────────────
