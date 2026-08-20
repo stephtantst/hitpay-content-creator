@@ -2726,28 +2726,43 @@ def api_automation_weekly_post(request: Request, dry_run: bool = True):
     }
 
 
-def _run_weekly_batch(user_email: str, brand: str = "hitpay") -> dict:
-    """Generate 7 paired X+Threads drafts (one per day Mon–Sun, same topic per pair).
+def _run_weekly_batch(user_email: str, brand: str = "hitpay", start_date: str = None) -> dict:
+    """Generate 7 paired X+Threads drafts (one per day, same topic per pair).
+    If start_date (YYYY-MM-DD) is provided, posts are saved as 'scheduled' with
+    scheduled_at = 9am SGT on each of the 7 consecutive days. Otherwise saved as drafts.
     Shared between the automation endpoint and the UI endpoint.
     """
     import threading
+    from datetime import date as _date, timedelta
     from src.thought_leadership import generate_random_x_post, HITPAY_TOPIC_POOL, CONTENT_TYPE_BY_WEEKDAY
     from src.threads_thought_leadership import generate_threads_story
 
     _MARKETS = ["SG", "MY", "PH", None]
-    content_types = list(CONTENT_TYPE_BY_WEEKDAY.values())
     _THREADS_SIZE_BY_CONTENT_TYPE = {
         "thought_leadership": 1,
         "product_focus": 3,
         "merchant_story": 3,
     }
 
+    # Build list of (content_type, scheduled_at_iso_or_None) for 7 days
+    if start_date:
+        base = _date.fromisoformat(start_date[:10])
+        day_pairs = [
+            (
+                CONTENT_TYPE_BY_WEEKDAY[(base + timedelta(days=i)).weekday()],
+                (base + timedelta(days=i)).isoformat() + "T01:00:00Z",  # 9am SGT = 1am UTC
+            )
+            for i in range(7)
+        ]
+    else:
+        day_pairs = [(ct, None) for ct in CONTENT_TYPE_BY_WEEKDAY.values()]
+
     x_results = []
     thr_results = []
     errors = []
     lock = threading.Lock()
 
-    def _gen_pair(content_type: str):
+    def _gen_pair(content_type: str, scheduled_at_str: str | None):
         market = random.choice(_MARKETS)
         topic = random.choice(HITPAY_TOPIC_POOL)
         thread_size = _THREADS_SIZE_BY_CONTENT_TYPE.get(content_type, 3)
@@ -2761,9 +2776,12 @@ def _run_weekly_batch(user_email: str, brand: str = "hitpay") -> dict:
             post_id = create_x_post(
                 content=content,
                 market=data.get("market") or market,
+                scheduled_at=scheduled_at_str,
                 editor_email=user_email,
                 brand=brand,
             )
+            if scheduled_at_str:
+                _change_x_status(post_id, "scheduled", scheduled_at=scheduled_at_str)
             log_x_audit(post_id, user_email, "created", {
                 "source": "weekly_batch", "content_type": content_type,
                 "market": data.get("market") or market or "", "topic": actual_topic,
@@ -2782,9 +2800,12 @@ def _run_weekly_batch(user_email: str, brand: str = "hitpay") -> dict:
             post_id = create_threads_post(
                 content=content,
                 market=data.get("market") or market,
+                scheduled_at=scheduled_at_str,
                 editor_email=user_email,
                 brand=brand,
             )
+            if scheduled_at_str:
+                _change_thr_status(post_id, "scheduled", scheduled_at=scheduled_at_str)
             log_threads_audit(post_id, user_email, "created", {
                 "source": "weekly_batch", "thread_size": thread_size,
                 "market": data.get("market") or market or "", "topic": actual_topic,
@@ -2796,7 +2817,7 @@ def _run_weekly_batch(user_email: str, brand: str = "hitpay") -> dict:
             with lock:
                 errors.append({"platform": "threads", "content_type": content_type, "error": str(e)})
 
-    all_threads = [threading.Thread(target=_gen_pair, args=(ct,)) for ct in content_types]
+    all_threads = [threading.Thread(target=_gen_pair, args=(ct, sat)) for ct, sat in day_pairs]
     for t in all_threads: t.start()
     for t in all_threads: t.join()
 
@@ -2818,12 +2839,13 @@ def api_generate_weekly_drafts(request: Request):
 
 class WeeklyBatchRequest(BaseModel):
     brand: str = "hitpay"
+    start_date: str | None = None  # YYYY-MM-DD; if set, posts are scheduled one per day from this date
 
 
 @app.post("/api/generate-weekly-batch")
 def api_generate_weekly_batch_ui(body: WeeklyBatchRequest, user_email: str = Depends(require_auth)):
-    """UI-accessible weekly batch generator. Generates 7 paired X+Threads drafts as unscheduled drafts."""
-    return _run_weekly_batch(user_email=user_email, brand=body.brand)
+    """UI-accessible weekly batch generator. Generates 7 paired X+Threads drafts."""
+    return _run_weekly_batch(user_email=user_email, brand=body.brand, start_date=body.start_date)
 
 
 # ── YouTube description generator ───────────────────────────────────────────

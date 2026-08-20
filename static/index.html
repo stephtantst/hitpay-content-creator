@@ -4428,8 +4428,22 @@
 <div class="modal-overlay" id="weeklyBatchModal">
   <div class="modal" style="max-width:420px;">
     <div class="modal-title">Generate Week of Drafts</div>
-    <div id="weeklyBatchIntro" style="margin-bottom:18px;font-size:13px;color:var(--text-secondary);">
-      Generates 7 paired X + Threads drafts — one per day (Mon–Sun), same topic per pair, following the day-of-week content schedule. All land in Unscheduled Drafts ready to schedule.
+    <div id="weeklyBatchIntro" style="margin-bottom:16px;font-size:13px;color:var(--text-secondary);">
+      Generates 7 paired X + Threads drafts — one per day, same topic per pair, following the day-of-week content schedule.
+    </div>
+    <div style="margin-bottom:18px;">
+      <div style="display:flex;align-items:flex-end;gap:10px;">
+        <div style="flex:1;">
+          <div class="field-label">Week starting</div>
+          <input type="date" id="weeklyBatchStartDate" class="field-input" oninput="updateWeeklyBatchEndDate()" />
+        </div>
+        <div style="padding-bottom:9px;color:var(--text-dim);font-size:13px;">→</div>
+        <div style="flex:1;">
+          <div class="field-label">Ends</div>
+          <div id="weeklyBatchEndDateLabel" class="field-input" style="background:var(--bg-secondary,#f5f5f5);color:var(--text-dim);cursor:default;">—</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text-tertiary);margin-top:5px;">Leave blank to save as unscheduled drafts.</div>
     </div>
     <div id="weeklyBatchActions" style="display:flex;gap:8px;">
       <button class="btn" style="flex:1;" onclick="closeWeeklyBatchModal()">Cancel</button>
@@ -5354,11 +5368,30 @@ function closeGenerateModal() {
   document.getElementById('generateModal').classList.remove('open');
 }
 
+function _nextMonday() {
+  const d = new Date();
+  const day = d.getDay(); // 0=Sun, 1=Mon …
+  const diff = day === 0 ? 1 : (8 - day) % 7 || 7;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function updateWeeklyBatchEndDate() {
+  const val = document.getElementById('weeklyBatchStartDate').value;
+  const el = document.getElementById('weeklyBatchEndDateLabel');
+  if (!val) { el.textContent = '—'; return; }
+  const end = new Date(val + 'T00:00:00');
+  end.setDate(end.getDate() + 6);
+  el.textContent = end.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 function openWeeklyBatchModal() {
   document.getElementById('weeklyBatchActions').style.display = 'flex';
   document.getElementById('weeklyBatchLoading').style.display = 'none';
   document.getElementById('weeklyBatchResult').style.display = 'none';
   document.getElementById('weeklyBatchResultContent').innerHTML = '';
+  document.getElementById('weeklyBatchStartDate').value = _nextMonday();
+  updateWeeklyBatchEndDate();
   document.getElementById('weeklyBatchModal').classList.add('open');
 }
 
@@ -5367,6 +5400,7 @@ function closeWeeklyBatchModal() {
 }
 
 async function runWeeklyBatch() {
+  const startDate = document.getElementById('weeklyBatchStartDate').value || null;
   document.getElementById('weeklyBatchActions').style.display = 'none';
   document.getElementById('weeklyBatchLoading').style.display = 'block';
   document.getElementById('weeklyBatchResult').style.display = 'none';
@@ -5374,7 +5408,7 @@ async function runWeeklyBatch() {
     const res = await fetch('/api/generate-weekly-batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand: activeBrand }),
+      body: JSON.stringify({ brand: activeBrand, start_date: startDate }),
     });
     const data = await res.json();
     document.getElementById('weeklyBatchLoading').style.display = 'none';
@@ -5386,8 +5420,9 @@ async function runWeeklyBatch() {
       const xCount = data.x?.total || 0;
       const thrCount = data.threads?.total || 0;
       const errors = data.errors || [];
+      const scheduled = !!startDate;
       let html = `<div style="font-size:13px;margin-bottom:10px;">
-        Created <strong>${xCount} X</strong> and <strong>${thrCount} Threads</strong> drafts.</div>`;
+        Created <strong>${xCount} X</strong> and <strong>${thrCount} Threads</strong> ${scheduled ? 'posts, scheduled for the selected week.' : 'unscheduled drafts.'}</div>`;
       if (errors.length) {
         html += `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">${errors.length} post(s) had errors:</div>`;
         errors.forEach(e => {
@@ -5397,6 +5432,7 @@ async function runWeeklyBatch() {
       document.getElementById('weeklyBatchResultContent').innerHTML = html;
       if (typeof loadXPosts === 'function') loadXPosts();
       if (typeof loadThrPosts === 'function') loadThrPosts();
+      if (scheduled && typeof loadSocialCalPosts === 'function') loadSocialCalPosts();
     }
   } catch (err) {
     document.getElementById('weeklyBatchLoading').style.display = 'none';
