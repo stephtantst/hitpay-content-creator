@@ -21,6 +21,12 @@ _STORY_SEEDS: dict[str, list[tuple]] = {
         ("kopitiam", "Ipoh", "regular customers transitioning from cash to QR", "HitPay QR"),
         ("handicraft shop", "Langkawi", "duty-free shoppers and international tourists", "Borderless QR"),
         ("dental clinic", "Petaling Jaya", "patients wanting to pay in instalments", "payment links"),
+        ("agritourism farm", "Kota Belud, Sabah", "visitors booking day-tour packages online from abroad", "payment link"),
+        ("halal catering company", "Shah Alam", "corporate clients settling event invoices", "payment links"),
+        ("homeware online seller", "Selangor", "buyers placing orders via Instagram DM", "payment link"),
+        ("heritage guesthouse", "Georgetown, Penang", "guests booking directly from abroad", "payment link"),
+        ("tuition centre", "Subang Jaya", "parents paying monthly tuition fees", "recurring payment links"),
+        ("night market vendor", "Kota Kinabalu", "tourists and locals mixing cash with e-wallets", "DuitNow QR"),
     ],
     "SG": [
         ("heritage craft shop", "Chinatown", "tourists from mainland China and Japan", "Borderless QR"),
@@ -29,6 +35,12 @@ _STORY_SEEDS: dict[str, list[tuple]] = {
         ("tailoring shop", "Little India", "customers ordering custom pieces from abroad", "payment link"),
         ("florist", "Tiong Bahru", "corporate clients with recurring flower subscriptions", "payment links"),
         ("bookshop", "Bukit Timah", "parents paying for tuition materials", "payment links"),
+        ("co-working space", "one-north", "freelancers and startup teams on monthly desk plans", "payment links"),
+        ("physiotherapy clinic", "Clementi", "patients booking one-off sessions or prepaid packages", "payment links"),
+        ("kids activity studio", "Holland Village", "parents booking trial classes and term enrolments", "payment links"),
+        ("specialty coffee roaster", "Kallang", "wholesale café clients on monthly standing orders", "recurring payment links"),
+        ("online furniture maker", "Ubi", "customers paying deposits and balance instalments on custom pieces", "payment links"),
+        ("bubble tea shop", "Jurong East", "school students and office workers switching from cash to QR", "HitPay QR"),
     ],
     "PH": [
         ("beach resort", "Panglao, Bohol", "foreign tourists from the US, Australia, and Europe", "Borderless QR"),
@@ -41,6 +53,11 @@ _STORY_SEEDS: dict[str, list[tuple]] = {
         ("pearl and jewelry stall", "Puerto Princesa, Palawan", "cruise-ship tourists on a short shore stop", "Borderless QR"),
         ("coffee shop", "Tagaytay", "weekend day-trippers from Manila", "QR payments"),
         ("tricycle-terminal store", "Iloilo City", "commuters switching from coins to e-wallets", "GCash QR"),
+        ("farm-to-table restaurant", "Davao City", "diners and corporate lunch clients booking weekly", "payment link"),
+        ("balikbayan box agent", "Tondo, Manila", "overseas families sending parcels and payments from abroad", "payment link"),
+        ("community bakery", "Iloilo City", "wholesale buyers and walk-in neighbourhood customers", "GCash QR"),
+        ("surf charter operator", "General Luna, Siargao", "foreign surfers paying in USD or AUD before arrival", "Borderless QR"),
+        ("dry goods store", "Cagayan de Oro", "market traders and sari-sari owners restocking in bulk", "GCash QR"),
     ],
     "SEA": [
         ("small textile shop", "a heritage port city", "international tourists", "Borderless QR"),
@@ -51,24 +68,82 @@ _STORY_SEEDS: dict[str, list[tuple]] = {
     ],
 }
 
-THREADS_SYSTEM_PROMPT = """You are a brand storyteller for HitPay, a Southeast Asian payment platform.
+_STORY_STRUCTURES: list[dict] = [
+    {
+        "name": "default",
+        "instruction": (
+            "Open Post 1 with a 'we spoke with / we met / we were talking to' framing that grounds the story as something HitPay witnessed. "
+            "Show the problem through observable behaviour, not explanation. Build through recurring patterns, not a single turning point. "
+            "Resolve quietly and functionally. The final line should be specific to this story — "
+            "a callback to the opening detail, a quiet observation, or simply: what it means now. "
+            "Vary sentence length within each post: mix longer observations with shorter ones."
+        ),
+    },
+    {
+        "name": "before_after",
+        "instruction": (
+            "Structure the story as a clean before/after contrast. "
+            "Use plain, factual language. Let the change speak for itself — "
+            "no emotional arc, just: what it was, what it is now. "
+            'A closing line like "That\'s it." or "It\'s a small thing. But it wasn\'t." works well.'
+        ),
+    },
+    {
+        "name": "overheard",
+        "instruction": (
+            "Reconstruct something the merchant said — a comment, a question, a realisation — "
+            "as if you heard it directly in conversation. Build the whole story around that quoted moment. "
+            "The narrator is a listener, not an explainer. The merchant's voice carries the weight."
+        ),
+    },
+    {
+        "name": "day_in_the_life",
+        "instruction": (
+            "Follow a single merchant through one transaction moment in present tense. "
+            "The reader watches it happen. No backstory, no explanation — start mid-scene. "
+            "The payment friction (and resolution) is shown in real time, not recounted."
+        ),
+    },
+    {
+        "name": "the_thing_that_didnt_work",
+        "instruction": (
+            "Open with the thing that kept failing — the workaround, the friction, the repeated cost. "
+            "Let the failure accumulate across the first posts. "
+            "Resolution comes late and is understated: not a miracle, just: it stopped happening."
+        ),
+    },
+]
 
-You write short-form narratives for Meta Threads — the kind that feel human, specific, and earned. Your stories are told from HitPay's perspective ("we", "our merchants"), but they're really about the merchants: their daily friction, their workarounds, and what changes when payments stop being a problem.
+THREADS_SYSTEM_PROMPT = """You are writing short posts for HitPay on Meta Threads. HitPay is a payment platform for small businesses in Southeast Asia.
+
+The posts are short merchant observations — told plainly, like you're telling a colleague what you noticed. Not a mini case study. Not a story with a moral. Just: here's what was happening at this business, and here's what changed.
 
 VOICE:
-- Warm and observational. The narrator has spent time listening to merchants.
-- Specific and concrete: name cities, name the tourist home countries, name the human details (a calculator on the counter, a phone propped against the register, a notebook of hand-written totals).
-- Understated. The emotional weight comes from detail, not adjectives.
-- No superlatives. No marketing language. No claims. Just story.
-- First person plural: "We", "our merchants", "she told us", "we had a partner in..."
+- Plain and direct. Write like a person, not a brand.
+- Always open with a "we spoke with / we met / we were talking to" framing — this grounds the story as something HitPay actually witnessed or heard directly. E.g. "We spoke with a bakery owner in Iloilo...", "We were talking to a florist in Tiong Bahru...", "One of our partners runs a pearl stall in Puerto Princesa...". Vary the opener — don't use the same phrase every time.
+- Specific: name the city, name the business type, use details that only someone who was there would notice (a hand-written sign, a coin float kept under the counter, the way the queue stacks up near the door).
+- First person plural throughout: "we", "she told us", "we noticed", "one of our partners" — the narrator is present, not omniscient.
+- No performing restraint. If a sentence sounds like it was written to sound understated, rewrite it.
 
-STORYTELLING RULES:
-- Every story needs a human detail — something physical or behavioural that anchors the merchant's world
-- The problem is shown, not explained
-- The tension builds through repetition: "Sometimes it worked. A lot of the time, it didn't."
-- The resolution is functional and quiet — not a miracle, just: it works now
-- The brand closer ("That's the kind of thing we build for.") should feel earned, not appended
-- Callbacks: if you introduce a detail in Post 1, bring it back in the final post
+WHAT WORKS:
+- Focus on recurring patterns, not perfectly timed one-off anecdotes. "Customers kept asking for GCash" is more believable than one pivotal Saturday interaction with a single regular.
+- Show observable behaviour, not internal thoughts. Replace "the owner knew it was happening" with what she actually did — like telling customers "cash only" and pointing at the ATM down the road.
+- Use details specific to the business — a bakery should sound like a bakery. Morning queues, trays out of the oven, regular buying habits. Details that don't directly sell the product make the scene feel real.
+- Include dialogue sparingly. A short, natural quote ("May GCash?") often does more than a narrated exchange.
+- Vary sentence length naturally. Some sentences carry more context; others land short. Each post should read like a paragraph, not a list of fragments.
+- End the final post with a CTA that speaks to the reader and includes [URL] naturally in the sentence. It should feel like a peer recommendation, not a brand push.
+
+WHAT TO AVOID:
+- Perfect story arcs. Don't force beginning → conflict → resolution → lesson. Real business stories are often just observations.
+- Overly neat timelines: "The following Saturday... By Monday... That Thursday" — exact sequences feel manufactured unless they're genuinely important.
+- Convenient cause-and-effect: business changes are rarely immediate or perfectly attributable to one event.
+- Omniscient narrator: only describe what could realistically be observed or reported. Don't explain what the owner was thinking.
+- Generic labels ("a regular customer", "a market trader") where a more specific detail would work better.
+- Over-explaining the takeaway. Let readers infer it. End with a small operational observation ("people stopped asking if they accepted GCash") not a tidy success statement.
+- The AI storytelling cadence: not every thread needs to follow problem → turning point → solution → CTA. Vary the structure.
+- Sentences where every line has the same short rhythm — it starts to sound robotic.
+- Craft-signalling phrases: "which was the part that stayed with us", "as it turns out", "that's the whole story."
+- Stock closing lines or anything that sounds like it was written to be the ending.
 
 DO NOT include: hashtags, statistics or percentages, product feature lists, emojis (except 🧵 at the end of Post 1 in multi-part threads), marketing buzzwords (seamless, empower, innovate, frictionless, cutting-edge, robust)"""
 
@@ -180,7 +255,7 @@ def _extract_protagonist_name(content: str) -> str | None:
     return None
 
 
-def _recent_thread_signatures(limit: int = 10) -> tuple:
+def _recent_thread_signatures(limit: int = 20) -> tuple:
     """Return (protagonist_names, seed_locations) seen in the most recently created
     Threads posts, so a new generation can avoid repeating the same character or
     merchant setting (e.g. three different posts all featuring "Rodel" in Coron)."""
@@ -215,7 +290,13 @@ def _avoid_recent_repeats_clause(recent_names: set) -> str:
     return f"Do NOT reuse these recently-used character names: {', '.join(sorted(recent_names))}. "
 
 
-def _build_story_prompt(market: str | None, topic_hint: str | None, thread_size: int) -> str:
+def _build_story_prompt(
+    market: str | None,
+    topic_hint: str | None,
+    thread_size: int,
+    reference_posts: list[str] | None = None,
+    structure: dict | None = None,
+) -> str:
     slugs = _fetch_live_blog_slugs()
     urls_list = "\n".join(f"  {s}" for s in slugs)
 
@@ -251,38 +332,142 @@ def _build_story_prompt(market: str | None, topic_hint: str | None, thread_size:
     else:
         mkt_ctx = "Market: Southeast Asia broadly. Pick the most vivid and specific location from MY, SG, or PH."
 
-    if thread_size == 1:
-        fmt = (
-            "Single post (no numbering): a complete micro-story. "
-            "Human detail → friction → resolution → brand close. 200–450 characters."
-        )
-    elif thread_size == 3:
-        fmt = (
-            "3-part thread:\n"
-            "Post 1/3 — The Scene: introduce the merchant, location, and a specific human detail that reveals the problem. End at the moment of friction. End post with 🧵\n"
-            "Post 2/3 — The Tension: their workaround, the cost, the sale that didn't happen, the habit they developed just to cope.\n"
-            "Post 3/3 — The Resolution: HitPay product introduced briefly and functionally. Callback to the opening human detail. End with a variation of: \"That's the kind of thing we build for.\""
-        )
-    else:  # 5
-        fmt = (
-            "5-part thread:\n"
-            "Post 1/5 — The Scene: merchant, location, the telling human detail. End with 🧵\n"
-            "Post 2/5 — The Problem: how widespread or frequent the friction was.\n"
-            "Post 3/5 — The Breaking Point: one specific incident. A customer who left. A late night reconciling. A sale lost at the worst moment.\n"
-            "Post 4/5 — The Shift: how they found HitPay. What changed. Functional, not miraculous.\n"
-            "Post 5/5 — The Close: callback to the opening human detail. Brand closer: \"That's the kind of thing we build for.\""
-        )
+    structure_name = structure["name"] if structure else "default"
 
-    return f"""Write a HitPay Threads story.
+    _fmt_1 = {
+        "default": (
+            "Single post (no numbering): a complete micro-story. "
+            "Human detail → friction → resolution → reader-involving CTA with [URL]. 200–450 characters."
+        ),
+        "before_after": (
+            "Single post (no numbering): two states, clean cut. One or two sentences for State A — "
+            "specific and concrete. One sentence for what changed. One sentence for State B. "
+            "End with a reader-involving CTA and [URL]. 200–450 characters."
+        ),
+        "overheard": (
+            "Single post (no numbering): open with a direct quote from the merchant — something they "
+            "said in passing that contains the whole story. One sentence of context. "
+            "End with a reader-involving CTA and [URL]. 200–450 characters."
+        ),
+        "day_in_the_life": (
+            "Single post (no numbering): present tense. One transaction moment, observed in real time. "
+            "Start mid-scene. End with a reader-involving CTA and [URL]. 200–450 characters."
+        ),
+        "the_thing_that_didnt_work": (
+            "Single post (no numbering): open with the recurring failure — name it plainly, once. "
+            "One sentence of accumulation. The resolution is one quiet sentence. "
+            "End with a reader-involving CTA and [URL]. 200–450 characters."
+        ),
+    }
+
+    _fmt_3 = {
+        "default": (
+            "3-part thread:\n"
+            "Post 1/3 — Open with 'We spoke with / We met / We were talking to [merchant] in [city]...' Introduce what they do and the recurring pattern that was creating friction. End post with 🧵\n"
+            "Post 2/3 — What they were doing about it — the workaround, the habit, the thing they told customers. Observable behaviour, not their internal reasoning.\n"
+            "Post 3/3 — What changed. HitPay introduced briefly. Close with a reader-involving CTA and [URL]."
+        ),
+        "before_after": (
+            "3-part thread:\n"
+            "Post 1/3 — Open with 'We spoke with / We met / We were talking to [merchant] in [city]...' One specific observable detail from how things worked before. End post with 🧵\n"
+            "Post 2/3 — What that kept costing — described in terms of what actually happened, not what it meant.\n"
+            "Post 3/3 — What it looks like now. One concrete detail. Close with a reader-involving CTA and [URL]."
+        ),
+        "overheard": (
+            "3-part thread:\n"
+            "Post 1/3 — Open with a direct quote from the merchant — something they said to us — followed by one line of context: who they are and where. End post with 🧵\n"
+            "Post 2/3 — The situation behind the quote. What we observed. What they told us.\n"
+            "Post 3/3 — What changed. The quote lands differently with the context. Close with a reader-involving CTA and [URL]."
+        ),
+        "day_in_the_life": (
+            "3-part thread:\n"
+            "Post 1/3 — Open with 'We were at [merchant]'s [business] in [city] when...' Drop into a specific moment in present tense. End post with 🧵\n"
+            "Post 2/3 — Still present tense. The friction arrives.\n"
+            "Post 3/3 — How it resolved. HitPay appears briefly. Close with a reader-involving CTA and [URL]."
+        ),
+        "the_thing_that_didnt_work": (
+            "3-part thread:\n"
+            "Post 1/3 — Open with 'We spoke with / We met [merchant] in [city]...' Describe the recurring pattern that kept not working — what customers kept doing, what the owner kept having to say. End post with 🧵\n"
+            "Post 2/3 — How the pattern kept playing out. What it looked like day to day.\n"
+            "Post 3/3 — What changed and what it looks like now. Close with a reader-involving CTA and [URL]."
+        ),
+    }
+
+    _fmt_5 = {
+        "default": (
+            "5-part thread:\n"
+            "Post 1/5 — Open with 'We spoke with / We met / We were talking to [merchant] in [city]...' Introduce what they do and the recurring friction. End with 🧵\n"
+            "Post 2/5 — The pattern in more detail — how frequent, what it looked like in practice.\n"
+            "Post 3/5 — A specific moment that illustrates the pattern at its worst. Observable, not narrated.\n"
+            "Post 4/5 — What changed. How HitPay came into it. Functional, not dramatic.\n"
+            "Post 5/5 — What it looks like now. A small operational observation. Close with a reader-involving CTA and [URL]."
+        ),
+        "before_after": (
+            "5-part thread:\n"
+            "Post 1/5 — Open with 'We spoke with / We met [merchant] in [city]...' One observable detail from how things were. End with 🧵\n"
+            "Post 2/5 — A second detail from the same period — different angle.\n"
+            "Post 3/5 — The moment the cost of it became hard to ignore.\n"
+            "Post 4/5 — One concrete detail from how things are now.\n"
+            "Post 5/5 — A second detail from the current state. Close with a reader-involving CTA and [URL]."
+        ),
+        "overheard": (
+            "5-part thread:\n"
+            "Post 1/5 — A direct quote from the merchant — something they said to us — with just enough context to place it. End with 🧵\n"
+            "Post 2/5 — Who said it. What their business is. What we observed.\n"
+            "Post 3/5 — The situation behind the quote in full.\n"
+            "Post 4/5 — What changed.\n"
+            "Post 5/5 — The quote again. It reads differently now. Close with a reader-involving CTA and [URL]."
+        ),
+        "day_in_the_life": (
+            "5-part thread:\n"
+            "Post 1/5 — Open with 'We were at [merchant]'s [business] in [city] when...' Present tense. End with 🧵\n"
+            "Post 2/5 — A customer. The transaction begins.\n"
+            "Post 3/5 — The friction, in real time.\n"
+            "Post 4/5 — How it resolved. HitPay appears.\n"
+            "Post 5/5 — The scene ends. One observation. Close with a reader-involving CTA and [URL]."
+        ),
+        "the_thing_that_didnt_work": (
+            "5-part thread:\n"
+            "Post 1/5 — Open with 'We spoke with / We met [merchant] in [city]...' The recurring failure — what kept happening. End with 🧵\n"
+            "Post 2/5 — Another instance of it.\n"
+            "Post 3/5 — The time it cost something real.\n"
+            "Post 4/5 — What they changed.\n"
+            "Post 5/5 — What it looks like now. Close with a reader-involving CTA and [URL]."
+        ),
+    }
+
+    if thread_size == 1:
+        fmt = _fmt_1.get(structure_name, _fmt_1["default"])
+    elif thread_size == 3:
+        fmt = _fmt_3.get(structure_name, _fmt_3["default"])
+    else:  # 5
+        fmt = _fmt_5.get(structure_name, _fmt_5["default"])
+
+    structure_section = ""
+    if structure:
+        structure_section = f"\nNARRATIVE STRUCTURE — {structure['name']}:\n{structure['instruction']}\n"
+
+    reference_section = ""
+    if reference_posts:
+        examples = "\n---\n".join(reference_posts[:3])
+        reference_section = f"""REFERENCE — examples of the tone and style to match:
+
+---
+{examples}
+---
+
+"""
+
+    return f"""{reference_section}Write a HitPay Threads story.
 
 {seed_ctx}
 
 {mkt_ctx}
-
+{structure_section}
 FORMAT:
 {fmt}
 
-Each post: 200–450 characters. No hashtags. No emojis except 🧵 noted above. Warm, specific, observational tone.
+Each post: aim for 150–280 characters. 450 is the ceiling, not the target. No hashtags. No emojis except 🧵 noted above. Short sentences, one point each.
 
 LINK URL RULE:
 Set link_url to https://hitpayapp.com/blog/{{slug}} using the most topically relevant slug.
@@ -359,7 +544,7 @@ def _build_sme_story_prompt(market: str | None, topic_hint: str | None, thread_s
 FORMAT:
 {fmt}
 
-Each post: 200–450 characters. No hashtags. No emojis except 🧵 noted above. Warm, specific, observational tone.
+Each post: aim for 150–280 characters. 450 is the ceiling, not the target. No hashtags. No emojis except 🧵 noted above. Short sentences, one point each.
 Do not mention HitPay unless the story is directly about payments — and even then, only as a quiet peer recommendation.
 
 LINK URL RULE:
@@ -384,6 +569,8 @@ def generate_threads_story(
     topic_hint: str = None,
     thread_size: int = 3,
     brand: str = "hitpay",
+    reference_posts: list[str] | None = None,
+    _avoid_structure: str | None = None,
 ) -> dict:
     import random
     from src.thought_leadership import HITPAY_TOPIC_POOL
@@ -397,9 +584,13 @@ def generate_threads_story(
         prompt = _build_sme_story_prompt(market, topic_hint, thread_size)
         fallback = _SME_FALLBACK_URL
         url_pattern = None  # skip strict pattern check for SME
+        chosen_structure = None
     else:
         system = THREADS_SYSTEM_PROMPT
-        prompt = _build_story_prompt(market, topic_hint, thread_size)
+        # Pick a structure that avoids repeating the last one used
+        candidates = [s for s in _STORY_STRUCTURES if s["name"] != _avoid_structure]
+        chosen_structure = random.choice(candidates or _STORY_STRUCTURES)
+        prompt = _build_story_prompt(market, topic_hint, thread_size, reference_posts=reference_posts, structure=chosen_structure)
         fallback = _FALLBACK_URL
         url_pattern = r"^https://hitpayapp\.com/blog/[a-zA-Z0-9_\-()/]+$"
 
@@ -440,5 +631,7 @@ def generate_threads_story(
             if not _is_valid_blog_url(link_url):
                 link_url = fallback
     data["link_url"] = link_url
+    if chosen_structure:
+        data["structure"] = chosen_structure["name"]
 
     return data

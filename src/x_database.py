@@ -101,6 +101,43 @@ def delete_x_post(post_id: int):
     conn.run("DELETE FROM x_posts WHERE id = :id", id=post_id)
 
 
+def get_x_posts_scheduled_from(start_date: str) -> list[dict]:
+    """Fetch posts with scheduled_at >= start_date, ordered ascending."""
+    conn = get_connection()
+    rows = conn.run(
+        "SELECT * FROM x_posts WHERE scheduled_at >= :start ORDER BY scheduled_at ASC",
+        start=start_date,
+    )
+    return _rows_to_dicts(conn, rows)
+
+
+def get_x_posts_posted_in_range(start_date: str, end_date: str) -> list[dict]:
+    """Fetch posted posts within a posted_at range (for style reference)."""
+    conn = get_connection()
+    rows = conn.run(
+        "SELECT * FROM x_posts WHERE status = 'posted' AND posted_at >= :start AND posted_at < :end ORDER BY posted_at ASC",
+        start=start_date,
+        end=end_date,
+    )
+    return _rows_to_dicts(conn, rows)
+
+
+def delete_x_posts_scheduled_from(start_date: str) -> int:
+    """Delete posts scheduled from start_date onward and their audit log entries. Returns count deleted."""
+    conn = get_connection()
+    id_rows = conn.run(
+        "SELECT id FROM x_posts WHERE scheduled_at >= :start",
+        start=start_date,
+    )
+    ids = [r[0] for r in id_rows]
+    if not ids:
+        return 0
+    id_list = ", ".join(str(i) for i in ids)
+    conn.run(f"DELETE FROM x_audit_log WHERE post_id IN ({id_list})")
+    conn.run("DELETE FROM x_posts WHERE scheduled_at >= :start", start=start_date)
+    return len(ids)
+
+
 def log_x_audit(post_id: int, user_email: str, action: str, details: dict = None):
     conn = get_connection()
     if action == "edited":

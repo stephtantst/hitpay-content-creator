@@ -2728,7 +2728,10 @@ def api_automation_weekly_post(request: Request, dry_run: bool = True):
 
 @app.post("/api/automation/generate-weekly-drafts")
 def api_generate_weekly_drafts(request: Request):
-    """Generate 7 X drafts (one per content type) + 7 Threads drafts (varied sizes).
+    """Generate 7 paired X+Threads drafts (one pair per day, same topic per pair).
+
+    Each day's X and Threads post share the same topic_hint and market so the
+    daily content is thematically aligned across platforms.
 
     Called by GitHub Actions on Sunday. Posts land in Unscheduled Drafts for
     manual scheduling via the calendar drag-and-drop.
@@ -2745,42 +2748,49 @@ def api_generate_weekly_drafts(request: Request):
     # One post per day (Mon–Sun) following the day-of-week schedule:
     # product_focus × 3 (Mon/Thu/Sun), thought_leadership × 3 (Tue/Fri/Sat), merchant_story × 1 (Wed)
     content_types = list(CONTENT_TYPE_BY_WEEKDAY.values())
-    # Varied thread sizes: 2 singles, 3 three-post, 2 five-post
-    _THREAD_SIZES = [1, 1, 3, 3, 3, 5, 5]
+    # Threads thread size per X content type
+    _THREADS_SIZE_BY_CONTENT_TYPE = {
+        "thought_leadership": 1,
+        "product_focus": 3,
+        "merchant_story": 3,
+    }
 
     x_results = []
     thr_results = []
     errors = []
     lock = threading.Lock()
 
-    def _gen_x(content_type: str):
+    def _gen_pair(content_type: str):
+        market = random.choice(_MARKETS)
+        topic = random.choice(HITPAY_TOPIC_POOL)
+        thread_size = _THREADS_SIZE_BY_CONTENT_TYPE.get(content_type, 3)
+
+        # --- X ---
+        actual_topic = topic  # may be overridden by blog repurpose path
         try:
-            market = random.choice(_MARKETS)
-            topic = random.choice(HITPAY_TOPIC_POOL)
             data = generate_random_x_post(market=market, topic_hint=topic, brand="hitpay", content_type=content_type)
+            actual_topic = data.get("topic") or topic  # use X's resolved topic for Threads
             link = data.get("link_url") or ""
             content = "\n\n---\n\n".join(_cap_tweet(t.replace("[URL]", link)) for t in data["tweets"])
             post_id = create_x_post(
                 content=content,
-                market=data.get("market"),
+                market=data.get("market") or market,
                 editor_email="automation@hit-pay.com",
                 brand="hitpay",
             )
             log_x_audit(post_id, "automation@hit-pay.com", "created", {
                 "source": "weekly_batch", "content_type": content_type,
-                "market": data.get("market") or "", "topic": topic,
+                "market": data.get("market") or market or "", "topic": actual_topic,
             })
             with lock:
-                x_results.append({"content_type": content_type, "post_id": post_id, "market": data.get("market")})
+                x_results.append({"content_type": content_type, "post_id": post_id, "market": data.get("market") or market})
         except Exception as e:
             with lock:
                 errors.append({"platform": "x", "content_type": content_type, "error": str(e)})
 
-    def _gen_threads(thread_size: int):
+        # --- Threads — same topic + market as X ---
         try:
-            market = random.choice(_MARKETS)
-            topic = random.choice(HITPAY_TOPIC_POOL)
-            data = generate_threads_story(market=market, topic_hint=topic, brand="hitpay", thread_size=thread_size)
+            data = generate_threads_story(market=market, topic_hint=actual_topic, brand="hitpay", thread_size=thread_size)
             link = data.get("link_url") or ""
             posts = data.get("posts", [])
             content = "\n\n---\n\n".join(p.replace("[URL]", link) for p in posts)
@@ -2792,18 +2802,16 @@ def api_generate_weekly_drafts(request: Request):
             )
             log_threads_audit(post_id, "automation@hit-pay.com", "created", {
                 "source": "weekly_batch", "thread_size": thread_size,
-                "market": data.get("market") or market or "", "topic": topic,
+                "market": data.get("market") or market or "", "topic": actual_topic,
+                "content_type": content_type,
             })
             with lock:
-                thr_results.append({"thread_size": thread_size, "post_id": post_id, "market": data.get("market") or market})
+                thr_results.append({"content_type": content_type, "thread_size": thread_size, "post_id": post_id, "market": data.get("market") or market})
         except Exception as e:
             with lock:
-                errors.append({"platform": "threads", "thread_size": thread_size, "error": str(e)})
+                errors.append({"platform": "threads", "content_type": content_type, "error": str(e)})
 
-    all_threads = (
-        [threading.Thread(target=_gen_x, args=(ct,)) for ct in content_types] +
-        [threading.Thread(target=_gen_threads, args=(sz,)) for sz in _THREAD_SIZES]
-    )
+    all_threads = [threading.Thread(target=_gen_pair, args=(ct,)) for ct in content_types]
     for t in all_threads: t.start()
     for t in all_threads: t.join()
 

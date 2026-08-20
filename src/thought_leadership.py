@@ -263,20 +263,28 @@ def _build_merchant_story_prompt(thread_size: int) -> str:
         "visual_note": None,
     }, ensure_ascii=False)
 
+    example_1 = json.dumps({
+        "topic": "late payment cash flow",
+        "tweets": [
+            "She runs an events company in KL. Her biggest client pays on 60-day terms. Her caterer wants 14. "
+            "She switched to HitPay invoicing — auto-reminders, one-tap pay. Three clients paid on time that first month, no calls: [URL]",
+        ],
+        "link_url": "https://hitpayapp.com/blog/online-invoicing",
+        "visual_note": None,
+    }, ensure_ascii=False)
+
     return f"""You are the @hitpay_app content writer for X (Twitter) — Wednesday slot: Merchant Story.
-Write exactly 2 tweets that tell a real-feeling story about a Southeast Asian merchant solving a problem with HitPay.
+Write a single tweet that tells a real-feeling story about a Southeast Asian merchant solving a problem with HitPay.
 
 BRAND: HitPay — MAS-licensed (SG), BNM-approved (MY), BSP OPS-licensed (PH). No monthly fees. 50+ payment methods.
-TONE: Narrative, specific, human. Like a journalist telling a business story — not a brand writing a press release.
+TONE: Narrative, specific, human. Like a journalist compressing a business story into one sentence — not a brand writing a press release.
 AUDIENCE: SME founders and merchants in Singapore, Malaysia, or Philippines.
 
-CONTENT FORMAT: 2-tweet story — no numbers, no thread emoji
-- Exactly 2 tweets
-- Do NOT number them (no "1/2", "2/2")
+CONTENT FORMAT: Single tweet — no numbers, no thread emoji
+- Exactly 1 tweet
 - Do NOT use 🧵 or any thread emoji
-- Tweet 1: Set the scene — name the person, their business, the specific problem. Make it feel real and specific.
-- Tweet 2: What changed. Concrete outcome. End with HitPay as the reason + [URL] as a literal placeholder.
-- Each tweet: 200–280 chars. Short sentences. Real details.
+- The full arc in one tweet: person + problem → what changed → concrete outcome
+- 200–270 chars. End with [URL] as a literal placeholder.
 
 MERCHANT ARCHETYPE FOR THIS STORY: {archetype}
 Suggested name (use this one, or another equally specific and varied name — never reuse a name from a previous story): {suggested_name}
@@ -289,15 +297,13 @@ PAIN POINTS — pick the most compelling:
 - Checkout friction causing abandoned sales
 - Cash flow gap between sale date and payout date
 
-DO NOT default to overused examples: {_OVERUSED_STORY_EXAMPLES_TWEET}. If your instinct is to write one of
-these, pick a different city, business, and name instead — every story must feel freshly invented.
+DO NOT default to overused examples: {_OVERUSED_STORY_EXAMPLES_TWEET}. Every story must feel freshly invented.
 
 STYLE RULES:
 - Open with "She" or "He" or "They" — name a real-feeling archetype, not "a business owner"
-- Include one specific detail in tweet 1 that makes it feel true (a number, a day, a place)
-- Tweet 2 ends with a concrete result (time saved, money recovered, problem gone)
-- No hashtags, no @ mentions
-- No numbered tweets, no 🧵
+- Include one specific detail that makes it feel true (a number, a day, a place)
+- End with a concrete result + a short reader-involving CTA with [URL] — connect the outcome back to the reader, e.g. "If you're still chasing the same invoices, this is how she fixed it: [URL]"
+- No hashtags, no @ mentions, no 🧵
 - Banned words: seamlessly, unlock, revolutionise, game-changer, cutting-edge, empower, leverage
 
 LINK URL RULE:
@@ -308,9 +314,9 @@ LIVE BLOG SLUGS:
 {slugs_str}
 
 OUTPUT: Return a raw JSON object only. No markdown fences, no preamble.
-{json.dumps(example, ensure_ascii=False)}
+{example_1}
 
-IMPORTANT: [URL] in tweet 2 is a literal placeholder — never substitute the real URL."""
+IMPORTANT: [URL] is a literal placeholder — never substitute the real URL."""
 
 
 def _build_thought_leadership_prompt(thread_size: int) -> str:
@@ -318,13 +324,13 @@ def _build_thought_leadership_prompt(thread_size: int) -> str:
     urls_list = "\n".join(f"  {s}" for s in slugs)
 
     example = json.dumps({
-        "topic": "why some people prefer cash",
+        "topic": "manual bank reconciliation",
         "tweets": [
-            "Some people prefer cash because they don't trust that a digital payment will actually work. "
-            "That's not a tech problem. It's a reliability record problem. "
-            "When enough merchants have unreliable checkout, cash becomes rational."
+            "Every Monday morning reconciling last week's sales. "
+            "Matching bank statements to payment records to a spreadsheet that's already out of date. "
+            "HitPay reconciles automatically — if this is still how your Mondays start, it's worth a look: [URL]"
         ],
-        "link_url": None,
+        "link_url": "https://hitpayapp.com/blog/hitpay-rates",
         "visual_note": None,
     }, ensure_ascii=False)
 
@@ -340,8 +346,9 @@ CONTENT FORMAT: Single standalone tweet — no thread, no emoji
 - Do NOT use 🧵 or any thread emoji
 - Do NOT number the tweet
 - 200–270 chars
-- No URL required — set link_url to null. This is opinion-style content; links hurt engagement.
-- HitPay does not need to appear. The brand speaks through the quality of the observation.
+- Introduce both the problem and the HitPay solution. Structure: name the problem clearly → briefly show how HitPay addresses it → end with a reader-involving CTA and [URL].
+- Keep the problem observation sharp and specific — that's still what earns the read. The solution should be one concise sentence, not a feature list.
+- HitPay must appear as the practical answer to the problem named.
 
 ANGLES — pick the sharpest for the topic:
 - Opinion: a direct stance on a broken practice ("Cash is not simpler. It just shifts the cost somewhere invisible.")
@@ -588,7 +595,7 @@ HITPAY FEATURES TO DRAW FROM — use these verified facts, not generic descripti
 
 STYLE RULES:
 - Lead with what the merchant can now DO or STOP DOING — not what the feature is called
-- One clean sentence on the problem or outcome, one on what HitPay does, end with [URL]
+- Lead with the problem/outcome, then what HitPay does. End with a short reader-involving CTA that includes [URL] in the sentence — e.g. "If you're still turning away card customers, this takes 5 minutes to set up: [URL]" rather than just "Set up in minutes: [URL]"
 - No hashtags, no @ mentions
 - Banned words: seamlessly, unlock, revolutionise, game-changer, cutting-edge, empower, leverage, utilise, transformative, innovative, robust
 - NEVER disparage card terminals, POS hardware, or any payment method HitPay offers
@@ -723,7 +730,7 @@ CONTENT_TYPE_BY_WEEKDAY: dict[int, str] = {
 
 CONTENT_TYPE_CONFIGS: dict[str, dict] = {
     "product_focus":      {"thread_size": 1, "style": "product"},
-    "merchant_story":     {"thread_size": 2, "style": "storytelling"},
+    "merchant_story":     {"thread_size": 1, "style": "storytelling"},
     "thought_leadership": {"thread_size": 1, "style": "opinion"},
 }
 
