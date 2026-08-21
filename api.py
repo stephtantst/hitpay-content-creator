@@ -2848,41 +2848,6 @@ def api_generate_weekly_batch_ui(body: WeeklyBatchRequest, user_email: str = Dep
     return _run_weekly_batch(user_email=user_email, brand=body.brand, start_date=body.start_date)
 
 
-# ── Aug 20–31 seed endpoint (one-time use) ──────────────────────────────────
-
-@app.post("/api/seed-aug-posts")
-def api_seed_aug_posts(user_email: str = Depends(require_auth)):
-    """One-time endpoint: insert the pre-written Aug 20–31 X + Threads posts."""
-    from scripts.insert_aug_posts import POSTS, sat, BRAND
-
-    results = []
-    for p in POSTS:
-        scheduled = sat(p["date"])
-        x_id = thr_id = None
-        x_err = thr_err = None
-        try:
-            x_id = create_x_post(
-                content=p["x"], market=p["market"], scheduled_at=scheduled,
-                editor_email=user_email, brand=BRAND,
-            )
-            _change_x_status(x_id, "scheduled", scheduled_at=scheduled)
-        except Exception as e:
-            x_err = str(e)
-        try:
-            thr_id = create_threads_post(
-                content=p["threads"], market=p["market"], scheduled_at=scheduled,
-                editor_email=user_email, brand=BRAND,
-            )
-            _change_thr_status(thr_id, "scheduled", scheduled_at=scheduled)
-        except Exception as e:
-            thr_err = str(e)
-        results.append({"date": p["date"], "x_id": x_id, "thr_id": thr_id,
-                         "x_err": x_err, "thr_err": thr_err})
-
-    ok = sum(1 for r in results if r["x_id"] and r["thr_id"])
-    return {"inserted": ok, "total": len(results), "results": results}
-
-
 # ── YouTube description generator ───────────────────────────────────────────
 
 class GenerateYoutubeDescriptionRequest(BaseModel):
