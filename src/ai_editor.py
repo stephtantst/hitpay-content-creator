@@ -67,6 +67,7 @@ Rules:
 
 
 _SOCIAL_EXTRA = {
+    "instagram": "This is an Instagram caption. Keep the strong first-line hook, scannable short lines/small paragraphs, and a warm human tone. A few Instagram-native emojis are fine; do not add more than are needed. If a block of #hashtags is present at the end, keep it separate from the caption body and only change it if the instruction asks.",
     "reddit-op": "This is a Reddit OP body written in a real merchant's voice. Keep it casual (lowercase-casual is fine), keep it to 2-3 short paragraphs, put NO HitPay or product branding in it, and use NO em dashes.",
     "reddit-reply": "This is the separate reply from the verified HitPay account. Keep it dry, matter-of-fact, and honest about limitations; no hype, no hashtags, and NO em dashes.",
 }

@@ -2267,6 +2267,10 @@
     <svg viewBox="0 0 192 192" fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="18" height="18"><path d="M141.537 88.988a66.667 66.667 0 0 0-2.518-1.143c-1.482-27.307-16.403-42.94-41.457-43.1h-.34c-14.986 0-27.449 6.396-35.12 18.036l13.779 9.452c5.73-8.695 14.724-10.548 21.348-10.548h.229c8.249.053 14.474 2.452 18.503 7.129 2.932 3.405 4.893 8.111 5.864 14.05-7.314-1.243-15.224-1.626-23.68-1.14-23.82 1.371-39.134 15.264-38.105 34.568.522 9.792 5.4 18.216 13.735 23.719 7.047 4.652 16.124 6.927 25.557 6.412 12.458-.683 22.231-5.436 29.049-14.127 5.178-6.6 8.453-15.153 9.899-25.93 5.937 3.583 10.337 8.298 12.767 13.966 4.132 9.635 4.373 25.468-8.546 38.376-11.319 11.308-24.925 16.2-45.488 16.351-22.809-.169-40.06-7.484-51.275-21.742C35.236 139.966 29.808 120.682 29.605 96c.203-24.682 5.63-43.966 16.133-57.317C56.954 24.425 74.206 17.11 97.015 16.94c22.975.17 40.526 7.52 52.171 21.847 5.71 7.026 10.015 15.86 12.853 26.162l16.147-4.308c-3.44-12.68-8.853-23.606-16.219-32.668C147.036 9.607 125.202.195 97.105 0h-.2C68.789.195 47.179 9.642 32.8 28.08 19.931 44.492 13.244 67.544 13.01 96v.04c.234 28.456 6.921 51.508 19.79 67.92C47.18 182.358 68.79 191.805 96.905 192h.2c24.96-.173 42.554-6.708 57.048-21.189 18.963-18.945 18.392-42.692 12.142-57.27-4.484-10.454-13.033-18.945-24.758-24.553z"/></svg>
     <span class="platform-btn-label">Threads</span>
   </button>
+  <button class="platform-btn" id="platformBtnInstagram" onclick="switchPlatform('instagram')" title="Instagram">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg" width="18" height="18"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+    <span class="platform-btn-label">Instagram</span>
+  </button>
   <button class="platform-btn" id="platformBtnLinkedIn" onclick="switchPlatform('linkedin')" title="LinkedIn">
     <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="18" height="18"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
     <span class="platform-btn-label">LinkedIn</span>
@@ -2280,6 +2284,63 @@
     <span class="platform-btn-label">YouTube</span>
   </button>
 </nav>
+
+<!-- Instagram platform wrapper -->
+<div id="instagramPlatform" style="display:none; flex:1; overflow:auto; flex-direction:column;">
+  <div class="blog-platform-nav">
+    <div class="blog-platform-nav-tabs">
+      <button class="nav-btn active">Instagram Caption Generator</button>
+    </div>
+  </div>
+  <div class="yt-wrap">
+    <div style="max-width:720px; margin:0 auto;">
+      <div class="yt-title">Generate an Instagram caption</div>
+      <div class="yt-sub">Give a few keywords or a topic, optionally drop in a photo, and we'll write an on-brand caption with hashtags. This is just a generator — the photo is used once to write the caption and is never stored.</div>
+
+      <div class="field-group">
+        <div class="field-label">Keywords / topic</div>
+        <textarea class="field-textarea" id="igKeywords" rows="4" placeholder="e.g. new PayNow QR feature for cafes, no monthly fees, quick setup — friendly launch-day tone"></textarea>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Market</div>
+        <select class="modal-select" id="igMarket">
+          <option value="">🌏 Global (no specific market)</option>
+          <option value="SG">🇸🇬 Singapore</option>
+          <option value="MY">🇲🇾 Malaysia</option>
+          <option value="PH">🇵🇭 Philippines</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Photo (optional)</div>
+        <input type="file" id="igPhoto" accept="image/jpeg,image/png,image/gif,image/webp" onchange="igOnPhotoChange(event)" style="font-size:13px;">
+        <div id="igPhotoPreviewWrap" style="display:none; margin-top:10px; align-items:flex-start; gap:12px;">
+          <img id="igPhotoPreview" alt="Selected photo preview" style="max-width:160px; max-height:160px; border-radius:8px; object-fit:cover;">
+          <button class="btn btn-secondary" type="button" onclick="igClearPhoto()">Remove photo</button>
+        </div>
+        <div style="font-size:11.5px; color:var(--text-dim); margin-top:6px;">JPEG, PNG, GIF, or WebP · under 5MB · not saved anywhere</div>
+      </div>
+
+      <button class="btn btn-primary" id="igGenerateBtn" onclick="igGenerate()" style="width:100%;">Generate Caption</button>
+      <div id="igError" style="display:none; color:var(--red); font-size:12.5px; margin-top:8px;"></div>
+
+      <div class="field-group" style="margin-top:24px;">
+        <div class="field-label" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>Caption</span>
+          <span id="igCharCount" style="font-weight:400; color:var(--text-dim); font-size:11px;"></span>
+        </div>
+        <textarea class="yt-output-box" id="igCaptionOutput" rows="12" placeholder="Generated caption will appear here…" style="width:100%; box-sizing:border-box; resize:vertical;" oninput="igUpdateCharCount()"></textarea>
+        <div class="yt-output-actions" id="igOutputActions" style="display:none; gap:8px;">
+          <button class="btn btn-secondary" onclick="igCopy()">📋 Copy</button>
+          <button class="btn btn-secondary" onclick="openSocialAiEditModal('instagram')">✨ AI Rewrite</button>
+          <button class="btn btn-secondary" onclick="igGenerate()">🔄 Regenerate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- /instagramPlatform -->
 
 <!-- Blog platform wrapper -->
 <div id="blogPlatform">
@@ -6676,6 +6737,13 @@ const _SOCIAL_AI = {
     get: () => _getThrContent(),
     set: (c) => { populateThrEditor({ ...currentThrPost, content: c }); thrMarkDirty(); },
   },
+  instagram: {
+    label: 'Instagram',
+    apiPlatform: 'instagram',
+    ok: () => !!(document.getElementById('igCaptionOutput') || {}).value,
+    get: () => document.getElementById('igCaptionOutput').value,
+    set: (c) => { const ta = document.getElementById('igCaptionOutput'); ta.value = c; igUpdateCharCount(); },
+  },
   linkedin: {
     label: 'LinkedIn',
     apiPlatform: 'linkedin',
@@ -8263,6 +8331,7 @@ function switchPlatform(platform) {
   const isBlog = platform === 'blog';
   const isX = platform === 'x';
   const isThreads = platform === 'threads';
+  const isInstagram = platform === 'instagram';
   const isLinkedIn = platform === 'linkedin';
   const isReddit = platform === 'reddit';
   const isSocialCal = platform === 'socialcal';
@@ -8270,6 +8339,7 @@ function switchPlatform(platform) {
   document.getElementById('blogPlatform').style.display       = isBlog      ? 'flex' : 'none';
   document.getElementById('xPlatform').style.display          = isX         ? 'flex' : 'none';
   document.getElementById('threadsPlatform').style.display    = isThreads   ? 'flex' : 'none';
+  document.getElementById('instagramPlatform').style.display  = isInstagram ? 'flex' : 'none';
   document.getElementById('linkedinPlatform').style.display   = isLinkedIn  ? 'flex' : 'none';
   document.getElementById('redditPlatform').style.display     = isReddit    ? 'flex' : 'none';
   document.getElementById('socialCalPlatform').style.display  = isSocialCal ? 'flex' : 'none';
@@ -8277,6 +8347,7 @@ function switchPlatform(platform) {
   document.getElementById('platformBtnBlog').classList.toggle('active', isBlog);
   document.getElementById('platformBtnX').classList.toggle('active', isX);
   document.getElementById('platformBtnThreads').classList.toggle('active', isThreads);
+  document.getElementById('platformBtnInstagram').classList.toggle('active', isInstagram);
   document.getElementById('platformBtnLinkedIn').classList.toggle('active', isLinkedIn);
   document.getElementById('platformBtnReddit').classList.toggle('active', isReddit);
   document.getElementById('platformBtnSocialCal').classList.toggle('active', isSocialCal);
@@ -8287,6 +8358,96 @@ function switchPlatform(platform) {
   if (isReddit) { loadRePosts(); switchReView('overview'); }
   if (isSocialCal) { loadSocialCalPosts(); }
   if (isYouTube) { ytLoadHistory(); }
+}
+
+// ── Instagram caption generator ─────────────────────────────────────────────
+// Lean generator: keywords/topic + optional photo -> caption. The photo is sent
+// once to the backend for the vision call and is never stored anywhere.
+let _igPhotoFile = null;
+
+function igOnPhotoChange(event) {
+  const file = (event.target.files || [])[0] || null;
+  _igPhotoFile = file;
+  const wrap = document.getElementById('igPhotoPreviewWrap');
+  const img = document.getElementById('igPhotoPreview');
+  if (!file) { wrap.style.display = 'none'; img.removeAttribute('src'); return; }
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('Photo is too large — keep it under 5MB', 'error');
+    igClearPhoto();
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => { img.src = e.target.result; wrap.style.display = 'flex'; };
+  reader.readAsDataURL(file);
+}
+
+function igClearPhoto() {
+  _igPhotoFile = null;
+  const input = document.getElementById('igPhoto');
+  if (input) input.value = '';
+  const wrap = document.getElementById('igPhotoPreviewWrap');
+  const img = document.getElementById('igPhotoPreview');
+  wrap.style.display = 'none';
+  img.removeAttribute('src');
+}
+
+function igUpdateCharCount() {
+  const val = document.getElementById('igCaptionOutput').value || '';
+  document.getElementById('igCharCount').textContent = val.length ? `${val.length} chars` : '';
+}
+
+async function igGenerate() {
+  const keywords = document.getElementById('igKeywords').value.trim();
+  const market = document.getElementById('igMarket').value;
+  const errEl = document.getElementById('igError');
+  errEl.style.display = 'none';
+
+  if (!keywords && !_igPhotoFile) {
+    errEl.textContent = 'Add some keywords/a topic, or upload a photo.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('igGenerateBtn');
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = _igPhotoFile ? 'Reading photo & writing…' : 'Generating…';
+
+  const form = new FormData();
+  form.append('keywords', keywords);
+  form.append('market', market);
+  form.append('brand', typeof activeBrand !== 'undefined' ? activeBrand : 'hitpay');
+  if (_igPhotoFile) form.append('photo', _igPhotoFile);
+
+  try {
+    const res = await fetch('/api/instagram/generate', { method: 'POST', body: form });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      errEl.textContent = e.detail || 'Generation failed — please try again.';
+      errEl.style.display = 'block';
+      return;
+    }
+    const data = await res.json();
+    const out = document.getElementById('igCaptionOutput');
+    out.value = data.full || data.caption || '';
+    igUpdateCharCount();
+    document.getElementById('igOutputActions').style.display = 'flex';
+  } catch (err) {
+    errEl.textContent = err.message || 'Network error — please try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
+}
+
+function igCopy() {
+  const val = document.getElementById('igCaptionOutput').value || '';
+  if (!val) { showToast('Nothing to copy', 'error'); return; }
+  navigator.clipboard.writeText(val).then(
+    () => showToast('Caption copied', 'success'),
+    () => showToast('Copy failed', 'error'),
+  );
 }
 
 // ── YouTube description generator ───────────────────────────────────────────
