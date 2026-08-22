@@ -13,7 +13,7 @@ from pathlib import Path
 
 import httpx
 import uvicorn
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -489,6 +489,57 @@ async def api_import_post(post_id: int, file: UploadFile = File(...), user_email
 @app.get("/api/posts/{post_id}/audit-log")
 def api_get_audit_log(post_id: int, _: str = Depends(require_auth)):
     return get_audit_log(post_id)
+
+
+# ── Instagram caption generator ───────────────────────────────────────────────
+# Lean, stateless: keywords/topic + optional photo -> caption + hashtags.
+# The photo is read into memory, sent to Claude's vision API for this one call,
+# and never stored (no disk, no Vercel Blob).
+
+@app.post("/api/instagram/generate")
+async def api_generate_instagram(
+    keywords: str = Form(""),
+    market: str | None = Form(None),
+    brand: str = Form("hitpay"),
+    photo: UploadFile | None = File(None),
+    _: str = Depends(require_auth),
+):
+    from src.instagram_generator import (
+        generate_instagram_caption,
+        SUPPORTED_IMAGE_TYPES,
+    )
+
+    image_b64 = None
+    media_type = None
+    if photo is not None and photo.filename:
+        media_type = (photo.content_type or "").lower()
+        if media_type not in SUPPORTED_IMAGE_TYPES:
+            raise HTTPException(
+                400,
+                "Unsupported image type — upload a JPEG, PNG, GIF, or WebP.",
+            )
+        raw = await photo.read()
+        if len(raw) > 5 * 1024 * 1024:  # Claude vision cap is ~5MB per image
+            raise HTTPException(400, "Photo is too large — keep it under 5MB.")
+        import base64
+        image_b64 = base64.standard_b64encode(raw).decode("ascii")
+
+    market_norm = (market or "").strip().upper() or None
+    try:
+        result = generate_instagram_caption(
+            keywords=keywords,
+            market=market_norm,
+            brand=(brand or "hitpay").strip() or "hitpay",
+            image_b64=image_b64,
+            image_media_type=media_type,
+        )
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    except Exception as e:
+        if "overloaded_error" in str(e):
+            raise HTTPException(503, "Claude API is busy right now — please try again in a few seconds")
+        raise HTTPException(500, f"Instagram generation failed: {e}")
+    return result
 
 
 # ── Bulk Export ───────────────────────────────────────────────────────────────
