@@ -2,10 +2,9 @@ import json
 import random
 import re
 
-import anthropic
-
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL
+from config import OPENROUTER_MODEL
 from src.generator import _messages_create_with_retry
+from src.llm_client import OpenRouterClient
 from src.thought_leadership import _fetch_live_blog_slugs, _WRITING_STYLE_RULES
 
 _FALLBACK_URL = "https://hitpayapp.com/blog/hitpay-rates"
@@ -404,7 +403,7 @@ def generate_linkedin_post(
     topic_hint: str = None,
     brand: str = "hitpay",
 ) -> dict:
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
 
     if brand == "smegrowthhub":
         system = SME_LINKEDIN_SYSTEM_PROMPT
@@ -419,11 +418,10 @@ def generate_linkedin_post(
 
     response = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=1200,
         system=system + "\n\n" + _WRITING_STYLE_RULES,
         messages=[{"role": "user", "content": prompt}],
-        metadata={"user_id": "linkedin-generation"}
     )
 
     raw = response.content[0].text.strip()
@@ -455,7 +453,7 @@ def generate_linkedin_from_changelog(changelog_text: str, brand: str = "hitpay")
     from src.brand_config import get_brand_config
     bc = get_brand_config(brand)
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
 
     slugs = _fetch_live_blog_slugs()
     urls_list = "\n".join(f"  {s}" for s in (slugs or []))
@@ -489,11 +487,10 @@ Return raw JSON only:
 
     response = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=1000,
         system=system,
         messages=[{"role": "user", "content": prompt}],
-        metadata={"user_id": "linkedin-changelog"}
     )
 
     raw = response.content[0].text.strip()

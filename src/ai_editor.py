@@ -1,17 +1,18 @@
 """AI-powered targeted editing for blog post content."""
 
-import anthropic
 import time
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL
+from config import OPENROUTER_MODEL
+from src.llm_client import APIStatusError, OpenRouterClient
 
 
 def _messages_create_with_retry(client, max_retries=4, **kwargs):
-    """Call client.messages.create with exponential backoff on overloaded errors."""
+    """Call client.messages.create with exponential backoff on overloaded/rate-limited errors."""
     for attempt in range(max_retries):
         try:
             return client.messages.create(**kwargs)
-        except anthropic.APIStatusError as e:
-            if e.status_code == 529 and attempt < max_retries - 1:
+        except APIStatusError as e:
+            overloaded = e.status_code in (429, 502, 503) or "overloaded_error" in str(e)
+            if overloaded and attempt < max_retries - 1:
                 wait = 2 ** attempt
                 time.sleep(wait)
                 continue
@@ -36,9 +37,9 @@ def ai_edit_selection(selection: str, instruction: str) -> str:
         selection: The highlighted text from the editor
         instruction: What to change (e.g. "remove mention of Maya")
     """
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
     response = _messages_create_with_retry(client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=2048,
         system=_EDIT_SYSTEM,
         messages=[{
@@ -84,9 +85,9 @@ def ai_edit_social(content: str, instruction: str, platform: str = None) -> str:
     extra = _SOCIAL_EXTRA.get(platform or "")
     if extra:
         plat_line += extra + "\n\n"
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
     response = _messages_create_with_retry(client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=2048,
         system=_SOCIAL_EDIT_SYSTEM,
         messages=[{
@@ -110,9 +111,9 @@ def ai_edit_full(content: str, instruction: str) -> str:
         content: Full markdown body of the post (no frontmatter)
         instruction: What to change across the post
     """
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
     response = _messages_create_with_retry(client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=8192,
         system=_EDIT_SYSTEM,
         messages=[{

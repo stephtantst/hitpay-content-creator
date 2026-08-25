@@ -17,10 +17,9 @@ import json
 import random
 import re
 
-import anthropic
-
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL
+from config import OPENROUTER_MODEL
 from src.generator import _messages_create_with_retry
+from src.llm_client import OpenRouterClient
 
 DEFAULT_SUBREDDIT = "r/HitPay_official"
 
@@ -218,10 +217,10 @@ def generate_reddit_post(post: dict, market: str = None, brand: str = "hitpay", 
     brand = brand or post.get("brand") or "hitpay"
     system = SME_REDDIT_SYSTEM_PROMPT if brand == "smegrowthhub" else HITPAY_REDDIT_SYSTEM_PROMPT
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
     msg = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=2000,
         system=system,
         messages=[{"role": "user", "content": _build_reddit_prompt(post, market, brand, from_topic=from_topic)}],

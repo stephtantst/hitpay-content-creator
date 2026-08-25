@@ -10,11 +10,10 @@ import json
 import re
 from pathlib import Path
 
-import anthropic
-
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL
+from config import OPENROUTER_MODEL
 from src.brand_config import get_brand_config
 from src.generator import _messages_create_with_retry
+from src.llm_client import OpenRouterClient
 
 _MARKET_NAMES = {
     "SG": "Singapore",
@@ -148,10 +147,10 @@ def generate_instagram_caption(
     if not keywords and not has_image:
         raise ValueError("Give some keywords/a topic, or upload a photo.")
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
     response = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=1500,
         system=_system_prompt(brand, market),
         messages=[{

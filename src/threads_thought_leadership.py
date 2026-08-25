@@ -2,10 +2,9 @@ import json
 import random
 import re
 
-import anthropic
-
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL
+from config import OPENROUTER_MODEL
 from src.generator import _messages_create_with_retry
+from src.llm_client import OpenRouterClient
 from src.thought_leadership import _fetch_live_blog_slugs, _WRITING_STYLE_RULES
 
 _FALLBACK_URL = "https://hitpayapp.com/blog/hitpay-rates"
@@ -574,7 +573,7 @@ def generate_threads_story(
 ) -> dict:
     import random
     from src.thought_leadership import HITPAY_TOPIC_POOL
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
 
     if brand == "hitpay" and topic_hint is None:
         topic_hint = random.choice(HITPAY_TOPIC_POOL)
@@ -596,11 +595,10 @@ def generate_threads_story(
 
     response = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=2000,
         system=system + "\n\n" + _WRITING_STYLE_RULES,
         messages=[{"role": "user", "content": prompt}],
-        metadata={"user_id": "threads-generation"}
     )
 
     raw = response.content[0].text.strip()

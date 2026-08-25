@@ -1,4 +1,3 @@
-import anthropic
 import json
 import re
 import time
@@ -6,11 +5,12 @@ from datetime import date
 from pathlib import Path
 from slugify import slugify
 import yaml
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL
+from config import OPENROUTER_MODEL
+from src.llm_client import APIStatusError, OpenRouterClient
 
 
 def _messages_create_with_retry(client, max_retries=4, **kwargs):
-    """Call client.messages.stream with exponential backoff on overloaded errors.
+    """Call client.messages.stream with exponential backoff on overloaded/rate-limited errors.
 
     Uses streaming to avoid the 10-minute timeout on long generations.
     Returns the same Message object as messages.create() so callers are unchanged.
@@ -19,8 +19,8 @@ def _messages_create_with_retry(client, max_retries=4, **kwargs):
         try:
             with client.messages.stream(**kwargs) as stream:
                 return stream.get_final_message()
-        except anthropic.APIStatusError as e:
-            overloaded = e.status_code == 529 or "overloaded_error" in str(e)
+        except APIStatusError as e:
+            overloaded = e.status_code in (429, 502, 503) or "overloaded_error" in str(e)
             if overloaded and attempt < max_retries - 1:
                 wait = 2 ** (attempt + 1)  # 2s, 4s, 8s
                 time.sleep(wait)
@@ -681,7 +681,7 @@ Before returning your JSON, verify every payment method name, currency, and plac
     # Step 3: Generate with Claude
     system_prompt = SME_BLOG_SYSTEM_PROMPT if brand == "smegrowthhub" else BLOG_SYSTEM_PROMPT_AUTHORITY
     status("Generating blog post with Claude...")
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
 
     docs_section = f"\n## {brand_config.name} Product & Topic Documentation — Use for Factual Accuracy\n{product_docs}\n" if product_docs else ""
     external_links_section = _build_external_links_section(country, keyword)
@@ -734,11 +734,10 @@ Return the JSON object now."""
 
     response = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=max_tokens,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
-        metadata={"user_id": "blog-generation"}
     )
 
     if response.stop_reason == "max_tokens":
@@ -896,7 +895,7 @@ Before returning your JSON, verify every payment method name, currency, and plac
 
     system_prompt = BLOG_SYSTEM_PROMPT_AUTHORITY
     status("Rewriting blog post with Claude Opus...")
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
 
     docs_section = f"\n## HitPay Product Documentation — Feature & Flow Accuracy\n{product_docs}\n" if product_docs else ""
     external_links_section = _build_external_links_section(country, keyword)
@@ -932,11 +931,10 @@ Return the JSON object now."""
 
     response = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=16000,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
-        metadata={"user_id": "blog-rewrite"}
     )
 
     if response.stop_reason == "max_tokens":

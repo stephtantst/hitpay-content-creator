@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 HITPAY_MCP_URL = "https://hitpay-knowledge-mcp.vercel.app/api/mcp"
-CLAUDE_MODEL = "claude-sonnet-4-6"
+OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6"
+OPENROUTER_HAIKU_MODEL = "anthropic/claude-haiku-4.5"
 
 # Supabase PostgreSQL connection string
 DATABASE_URL = os.getenv("DATABASE_URL")

@@ -8,10 +8,9 @@ market.
 import json
 import re
 
-import anthropic
-
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL
+from config import OPENROUTER_MODEL
 from src.generator import _messages_create_with_retry
+from src.llm_client import OpenRouterClient
 from src.database import list_posts
 
 BLOG_BASE_URL = "https://hitpayapp.com/blog"
@@ -218,10 +217,10 @@ def generate_youtube_description(
 
     prompt = _build_prompt(video_info, market, candidates, video_type)
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
     response = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=1500,
         messages=[{"role": "user", "content": prompt}],
     )

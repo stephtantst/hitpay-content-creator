@@ -14,10 +14,10 @@ from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import httpx
-import anthropic
 from bs4 import BeautifulSoup
 
-from config import ANTHROPIC_API_KEY
+from config import OPENROUTER_HAIKU_MODEL
+from src.llm_client import OpenRouterClient
 
 DB_PATH = Path(__file__).parent.parent / "external_links_db.json"
 
@@ -403,7 +403,7 @@ def _classify_articles_with_claude(
     if not raw_articles:
         return []
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
 
     # Process in batches of 30 to stay within token limits
     classified: list[dict] = []
@@ -436,7 +436,7 @@ Only return the JSON array. Omit articles that are clearly not about payments, S
 
         try:
             resp = client.messages.create(
-                model="claude-haiku-4-5-20251001",
+                model=OPENROUTER_HAIKU_MODEL,
                 max_tokens=2000,
                 messages=[{"role": "user", "content": prompt}],
             )

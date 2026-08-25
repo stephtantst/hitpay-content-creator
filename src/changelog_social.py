@@ -1,10 +1,9 @@
 import json
 import re
 
-import anthropic
-
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL
+from config import OPENROUTER_MODEL
 from src.generator import _messages_create_with_retry
+from src.llm_client import OpenRouterClient
 from src.mcp_client import get_changelog
 from src.thought_leadership import _fetch_live_blog_slugs
 
@@ -285,7 +284,7 @@ def generate_x_from_changelog(
     brand: str = "hitpay",
 ) -> dict:
     """Fetch MCP changelog and generate: one X roundup thread + one tweet per entry."""
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
 
     mcp_result = get_changelog(limit=limit)
     changelog_text = _extract_changelog_text(mcp_result)
@@ -296,7 +295,7 @@ def generate_x_from_changelog(
 
     roundup_resp = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=1500,
         messages=[{"role": "user", "content": _build_x_roundup_prompt(changelog_text, market, n)}],
     )
@@ -306,7 +305,7 @@ def generate_x_from_changelog(
 
     individual_resp = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=3000,
         messages=[{"role": "user", "content": _build_x_individual_prompt(changelog_text, market)}],
     )
@@ -328,7 +327,7 @@ def generate_threads_from_changelog(
     brand: str = "hitpay",
 ) -> dict:
     """Fetch MCP changelog and generate: one Threads roundup thread + one post per entry."""
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
 
     mcp_result = get_changelog(limit=limit)
     changelog_text = _extract_changelog_text(mcp_result)
@@ -339,7 +338,7 @@ def generate_threads_from_changelog(
 
     roundup_resp = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=1500,
         messages=[{"role": "user", "content": _build_threads_roundup_prompt(changelog_text, market, n)}],
     )
@@ -349,7 +348,7 @@ def generate_threads_from_changelog(
 
     individual_resp = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=3000,
         messages=[{"role": "user", "content": _build_threads_individual_prompt(changelog_text, market)}],
     )

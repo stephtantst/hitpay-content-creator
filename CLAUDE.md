@@ -25,13 +25,14 @@ python api.py                            # FastAPI server (Google OAuth + REST A
 2. Queries live HitPay MCP server (`HITPAY_MCP_URL`) for knowledge/changelog/news
 3. Pulls competitor insights from `src/competitor_db.py`
 4. Selects market-specific external links (`external_links_db.json`, keyed by SG/MY/PH/SEA)
-5. Calls `claude-sonnet-4-6` with streaming + exponential backoff retry
+5. Calls Claude Sonnet via OpenRouter (`src/llm_client.py`) with streaming + exponential backoff retry
 6. Returns structured dict: title, slug, meta_title, meta_description, content, categories, tags
 
 **Post lifecycle**: `writing` → `ready_to_publish` → `published` (file-based in `posts/{status}/`, also tracked in Supabase via `src/database.py`)
 
 **Key modules**:
 - `src/generator.py` — main generation logic + Claude API call
+- `src/llm_client.py` — OpenRouter client shaped like the Anthropic Messages API (system=, messages=, .content[0].text, .stop_reason, .usage) so call sites didn't need to change when the app moved off calling Anthropic directly
 - `src/mcp_client.py` — HitPay knowledge MCP integration
 - `src/competitor_db.py` — external link library by market
 - `src/fact_checker.py` — AI fact validation
@@ -42,7 +43,7 @@ python api.py                            # FastAPI server (Google OAuth + REST A
 
 | Var | Purpose |
 |---|---|
-| `ANTHROPIC_API_KEY` | Claude API |
+| `OPENROUTER_API_KEY` | OpenRouter API key — all Claude calls are routed through OpenRouter's OpenAI-compatible endpoint, not Anthropic directly |
 | `HITPAY_MCP_URL` | HitPay knowledge MCP server |
 | `DATABASE_URL` | Supabase PostgreSQL (pg8000) |
 | `GOOGLE_CLIENT_ID/SECRET` | OAuth for web UI |

@@ -1,4 +1,4 @@
-anthropic>=0.40.0
+openai>=1.55.0
 mcp>=1.0.0
 pg8000>=1.31.0
 click>=8.1.0

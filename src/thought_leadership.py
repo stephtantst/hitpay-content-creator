@@ -4,12 +4,12 @@ import re
 import time
 from datetime import datetime as _datetime
 
-import anthropic
 import json
 import requests
 
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL
+from config import OPENROUTER_MODEL
 from src.generator import COUNTRY_CONTEXT, _load_relevant_docs, _messages_create_with_retry
+from src.llm_client import OpenRouterClient
 
 _SITEMAP_URL = "https://hitpayapp.com/sitemap_en.xml"
 _blog_slugs_cache: list[str] | None = None
@@ -823,7 +823,7 @@ def generate_thought_leadership_thread(
     if thread_size not in (1, 2, 3, 5, 7):
         raise ValueError(f"thread_size must be one of (1, 2, 3, 5, 7) — got {thread_size}")
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
     context_parts = []
 
     from src.brand_config import get_brand_config
@@ -869,11 +869,10 @@ def generate_thought_leadership_thread(
 
     msg = _messages_create_with_retry(
         client,
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=2500,
         system=prompt_builder(thread_size) + "\n\n" + _WRITING_STYLE_RULES,
         messages=[{"role": "user", "content": user_message}],
-        metadata={"user_id": "x-generation"}
     )
 
     raw = msg.content[0].text.strip()

@@ -12,16 +12,16 @@ from datetime import date
 from pathlib import Path
 
 import httpx
-import anthropic
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+
+from config import OPENROUTER_HAIKU_MODEL
+from src.llm_client import OpenRouterClient
 
 load_dotenv()
 
 COMPETITORS_DIR = Path("competitors")
 COMPETITORS_DIR.mkdir(exist_ok=True)
-
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 # ── URL lists per competitor ──────────────────────────────────────────────────
 
@@ -240,7 +240,7 @@ def fetch_page(url: str, timeout: int = 15) -> str | None:
 
 def extract_facts_with_claude(competitor_name: str, url: str, page_text: str) -> dict:
     """Use Claude Haiku to extract structured facts from page text."""
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
 
     prompt = f"""You are extracting structured facts about a payment platform competitor called "{competitor_name}" from their website page: {url}
 
@@ -277,7 +277,7 @@ Return ONLY the JSON object, no other text."""
 
     try:
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=OPENROUTER_HAIKU_MODEL,
             max_tokens=1024,
             messages=[{"role": "user", "content": prompt}]
         )

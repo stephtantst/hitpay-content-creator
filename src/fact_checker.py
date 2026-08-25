@@ -1,6 +1,6 @@
-import anthropic
 import re
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL
+from config import OPENROUTER_MODEL
+from src.llm_client import OpenRouterClient
 
 # Verified market facts sourced from official HitPay SEO/GEO audit — March 2026
 MARKET_FACTS = {
@@ -158,9 +158,9 @@ def run_fact_check(post: dict, content: str) -> dict:
         content=content[:12000],  # limit to avoid token overflow
     )
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenRouterClient()
     response = client.messages.create(
-        model=CLAUDE_MODEL,
+        model=OPENROUTER_MODEL,
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
