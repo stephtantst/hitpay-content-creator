@@ -5,18 +5,24 @@ from config import OPENROUTER_MODEL
 from src.llm_client import APIStatusError, OpenRouterClient
 
 
+_NON_RETRYABLE_STATUS_CODES = (400, 401, 403, 404, 422)
+
+
 def _messages_create_with_retry(client, max_retries=4, **kwargs):
-    """Call client.messages.create with exponential backoff on overloaded/rate-limited errors."""
+    """Call client.messages.create with exponential backoff on transient errors
+    (rate-limit/overload HTTP statuses and network-level failures like read
+    timeouts). A definite client error fails immediately instead of retrying."""
     for attempt in range(max_retries):
         try:
             return client.messages.create(**kwargs)
         except APIStatusError as e:
-            overloaded = e.status_code in (429, 502, 503) or "overloaded_error" in str(e)
-            if overloaded and attempt < max_retries - 1:
-                wait = 2 ** attempt
-                time.sleep(wait)
-                continue
-            raise
+            if e.status_code in _NON_RETRYABLE_STATUS_CODES or attempt >= max_retries - 1:
+                raise
+            time.sleep(2 ** attempt)
+        except Exception:
+            if attempt >= max_retries - 1:
+                raise
+            time.sleep(2 ** attempt)
 
 _EDIT_SYSTEM = """You are a precise content editor for HitPay's blog. Apply targeted edits to blog post markdown content.
 

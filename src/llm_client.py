@@ -116,10 +116,16 @@ class _Messages:
 class OpenRouterClient:
     """Drop-in replacement for anthropic.Anthropic(api_key=...)."""
 
-    def __init__(self, api_key=None):
+    def __init__(self, api_key=None, timeout=120.0):
+        # Some OpenRouter-routed models (especially smaller/third-party-hosted
+        # ones picked via the model-selection feature) can stall mid-stream for
+        # minutes. Bound each attempt well below the SDK's 10-minute default so
+        # a stalled request fails fast enough for _messages_create_with_retry
+        # to actually retry instead of hanging silently.
         self._client = OpenAI(
             base_url=_OPENROUTER_BASE_URL,
             api_key=api_key or OPENROUTER_API_KEY,
+            timeout=timeout,
             default_headers={
                 "HTTP-Referer": "https://hitpay-content-creator.vercel.app",
                 "X-Title": "HitPay Content Creator",

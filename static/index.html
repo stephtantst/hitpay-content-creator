@@ -3834,6 +3834,21 @@
       <option value="MY">🇲🇾 Malaysia</option>
       <option value="PH">🇵🇭 Philippines</option>
     </select>
+    <label class="modal-field-label">Model <span style="font-weight:400;color:var(--text-muted)">(for testing output across models)</span></label>
+    <select class="modal-select" id="generateModel" onchange="document.getElementById('generateModelCustom').style.display = this.value === '__custom__' ? '' : 'none'">
+      <option value="">Default (Claude Sonnet 4.6)</option>
+      <option value="anthropic/claude-haiku-4.5">Claude Haiku 4.5</option>
+      <option value="moonshotai/kimi-k2.6">Kimi K2.6</option>
+      <option value="moonshotai/kimi-k2.7-code">Kimi K2.7 Code</option>
+      <option value="__custom__">Custom — enter OpenRouter model slug…</option>
+    </select>
+    <input
+      class="modal-input"
+      id="generateModelCustom"
+      type="text"
+      placeholder="e.g. mistralai/mistral-large — see openrouter.ai/models"
+      style="display:none; margin-top:8px;"
+    />
     <div class="progress-log" id="progressLog"></div>
     <div class="modal-actions">
       <button class="btn btn-cancel" onclick="closeGenerateModal()">Cancel</button>
@@ -5414,6 +5429,9 @@ function openGenerateModal() {
   _genMinimized = false;
   document.getElementById('keywordInput').value = '';
   document.getElementById('generateCountry').value = '';
+  document.getElementById('generateModel').value = '';
+  document.getElementById('generateModelCustom').value = '';
+  document.getElementById('generateModelCustom').style.display = 'none';
   document.getElementById('progressLog').innerHTML = '';
   document.getElementById('progressLog').classList.remove('visible');
   document.getElementById('generateBtn').disabled = false;
@@ -5621,10 +5639,14 @@ async function startGenerate() {
 
   try {
     const country = document.getElementById('generateCountry').value || null;
+    const modelSelect = document.getElementById('generateModel').value;
+    const model = (modelSelect === '__custom__'
+      ? document.getElementById('generateModelCustom').value.trim()
+      : modelSelect) || null;
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyword, country, brand: activeBrand }),
+      body: JSON.stringify({ keyword, country, brand: activeBrand, model }),
     });
 
     const reader = res.body.getReader();

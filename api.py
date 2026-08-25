@@ -696,6 +696,7 @@ class GenerateRequest(BaseModel):
     category: str | None = None
     max_tokens: int = 16000
     brand: str = "hitpay"
+    model: str | None = None
 
 
 @app.post("/api/generate")
@@ -713,7 +714,7 @@ async def api_generate(body: GenerateRequest, user_email: str = Depends(require_
             yield f"data: {json.dumps({'type': 'status', 'message': 'Starting generation...'})}\n\n"
 
             post_data = await loop.run_in_executor(
-                None, lambda: generate_blog_post(body.keyword, country=body.country, aeo_prompt=body.aeo_prompt, category=body.category, max_tokens=body.max_tokens, on_status=on_status, brand=body.brand)
+                None, lambda: generate_blog_post(body.keyword, country=body.country, aeo_prompt=body.aeo_prompt, category=body.category, max_tokens=body.max_tokens, on_status=on_status, brand=body.brand, model=body.model)
             )
 
             for msg in messages:
@@ -733,6 +734,7 @@ async def api_generate(body: GenerateRequest, user_email: str = Depends(require_
             log_audit(post_id, user_email, "created", {
                 "keyword": body.keyword,
                 "country": body.country or "",
+                "model": post_data.get("model", ""),
             })
 
             done_payload: dict = {"type": "done", "post_id": post_id, "title": post_data["title"]}

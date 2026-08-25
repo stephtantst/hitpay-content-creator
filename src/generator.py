@@ -9,8 +9,18 @@ from config import OPENROUTER_MODEL
 from src.llm_client import APIStatusError, OpenRouterClient
 
 
+_NON_RETRYABLE_STATUS_CODES = (400, 401, 403, 404, 422)
+
+
 def _messages_create_with_retry(client, max_retries=4, **kwargs):
-    """Call client.messages.stream with exponential backoff on overloaded/rate-limited errors.
+    """Call client.messages.stream with exponential backoff on transient errors.
+
+    Retries on rate-limit/overload HTTP statuses AND on network-level failures
+    (read timeouts, connection resets) — the latter matter because a stalled
+    stream from a slow/flaky OpenRouter-routed model (e.g. one picked via the
+    model-selection field) otherwise fails once with no retry. A definite
+    client error (bad request, auth, not-found model slug) fails immediately
+    instead of wasting retries.
 
     Uses streaming to avoid the 10-minute timeout on long generations.
     Returns the same Message object as messages.create() so callers are unchanged.
@@ -20,12 +30,13 @@ def _messages_create_with_retry(client, max_retries=4, **kwargs):
             with client.messages.stream(**kwargs) as stream:
                 return stream.get_final_message()
         except APIStatusError as e:
-            overloaded = e.status_code in (429, 502, 503) or "overloaded_error" in str(e)
-            if overloaded and attempt < max_retries - 1:
-                wait = 2 ** (attempt + 1)  # 2s, 4s, 8s
-                time.sleep(wait)
-                continue
-            raise
+            if e.status_code in _NON_RETRYABLE_STATUS_CODES or attempt >= max_retries - 1:
+                raise
+            time.sleep(2 ** (attempt + 1))  # 2s, 4s, 8s
+        except Exception:
+            if attempt >= max_retries - 1:
+                raise
+            time.sleep(2 ** (attempt + 1))
 from src.mcp_client import search_knowledge, get_changelog, get_news
 from src.competitor_db import get_relevant_competitors, format_for_prompt
 from src.external_links import EXTERNAL_LINKS
@@ -588,7 +599,7 @@ COUNTRY_CONTEXT = {
 }
 
 
-def generate_blog_post(keyword: str, country: str = None, aeo_prompt: str = None, category: str = None, max_tokens: int = 16000, on_status=None, brand: str = "hitpay", source_material: str = None) -> dict:
+def generate_blog_post(keyword: str, country: str = None, aeo_prompt: str = None, category: str = None, max_tokens: int = 16000, on_status=None, brand: str = "hitpay", source_material: str = None, model: str = None) -> dict:
     """Generate a blog post for the given keyword.
 
     Args:
@@ -599,6 +610,8 @@ def generate_blog_post(keyword: str, country: str = None, aeo_prompt: str = None
         max_tokens: Claude response token limit (use 32000 for bulk/longer posts)
         on_status: Optional callback(message: str) for progress updates
         brand: Brand to generate for — "hitpay" or "smegrowthhub"
+        model: Optional OpenRouter model slug to override the default (e.g. for
+            testing output quality across models before standardizing on one)
         source_material: Optional raw launch document (EDM or PRD). When set, the
             post is written as an announcement of the product launch it describes,
             grounded in this text as the primary subject (internal/team-only notes
@@ -680,7 +693,8 @@ Before returning your JSON, verify every payment method name, currency, and plac
 
     # Step 3: Generate with Claude
     system_prompt = SME_BLOG_SYSTEM_PROMPT if brand == "smegrowthhub" else BLOG_SYSTEM_PROMPT_AUTHORITY
-    status("Generating blog post with Claude...")
+    resolved_model = model or OPENROUTER_MODEL
+    status(f"Generating blog post with {resolved_model}...")
     client = OpenRouterClient()
 
     docs_section = f"\n## {brand_config.name} Product & Topic Documentation — Use for Factual Accuracy\n{product_docs}\n" if product_docs else ""
@@ -734,7 +748,7 @@ Return the JSON object now."""
 
     response = _messages_create_with_retry(
         client,
-        model=OPENROUTER_MODEL,
+        model=resolved_model,
         max_tokens=max_tokens,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
@@ -765,6 +779,7 @@ Return the JSON object now."""
     post_data["country"] = country or ""
     post_data["status"] = "generated"
     post_data["brand"] = brand
+    post_data["model"] = resolved_model
 
     # Ensure slug is clean
     if not post_data.get("slug"):

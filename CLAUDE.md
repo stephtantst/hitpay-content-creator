@@ -50,6 +50,12 @@ python api.py                            # FastAPI server (Google OAuth + REST A
 
 `POSTS_DIR` auto-detects: Railway (`/data/posts`) → Vercel (`/tmp/posts`) → local (`posts/`)
 
+## Deployment
+
+This project deploys to Vercel **exclusively via the GitHub integration** — pushing to `main` on GitHub auto-deploys to production. Do NOT run `vercel --prod` or `vercel deploy` manually: those commands deploy whatever is in the local working directory, bypassing git entirely, and can silently overwrite production with a stale local checkout (this has happened before — a stale local `main` wiped out the Reddit/Instagram features from prod until it was caught and fixed by re-pulling and pushing through git).
+
+Before making changes or deploying, always check local is caught up: `git fetch && git log HEAD..origin/main --oneline` should be empty. If it isn't, pull/fast-forward first and re-check for new call sites or files that any pending local work needs to account for.
+
 ## Markets
 
 Posts target SG, MY, or PH. Market determines payment method copy, rates, and external link selection. Verified facts per market are in `hitpay_docs.md` and the memory system (`~/.claude/projects/.../memory/`).

@@ -81,6 +81,7 @@ def write_post_file(post_data: dict, target_dir: str = None) -> str:
         "categories": post_data.get("categories", []),
         "tags": post_data.get("tags", []),
         "word_count": len(post_data.get("content", "").split()),
+        "model": post_data.get("model", ""),
     }
 
     with open(file_path, "w", encoding="utf-8") as f:
