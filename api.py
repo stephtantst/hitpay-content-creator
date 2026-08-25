@@ -2827,7 +2827,7 @@ def _run_weekly_batch(user_email: str, brand: str = "hitpay", start_date: str = 
             data = generate_random_x_post(market=market, topic_hint=topic, brand=brand, content_type=content_type)
             actual_topic = data.get("topic") or topic
             link = data.get("link_url") or ""
-            content = "\n\n---\n\n".join(_cap_tweet(t.replace("[URL]", link)) for t in data["tweets"])
+            content = "\n\n---\n\n".join(_cap_tweet_post_url(t.replace("[URL]", link)) for t in data["tweets"])
             post_id = create_x_post(
                 content=content,
                 market=data.get("market") or market,
