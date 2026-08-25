@@ -2218,7 +2218,8 @@ def api_repurpose_all(post_id: int, user_email: str = Depends(require_auth)):
 
     def gen_threads():
         result = generate_threads_story(market=market, topic_hint=topic_hint, thread_size=3, brand=brand)
-        posts = result.get("posts") or []
+        link = result.get("link_url") or ""
+        posts = [p.replace("[URL]", link) for p in (result.get("posts") or [])]
         content = THREAD_SEP.join(posts) if len(posts) > 1 else (posts[0] if posts else "")
         tid = create_threads_post(
             content=content,
@@ -2749,8 +2750,9 @@ def api_automation_weekly_post(request: Request, dry_run: bool = True):
     def _gen_t():
         t_market = random.choice(_MARKETS)
         t_data = generate_threads_story(market=t_market, brand="hitpay")
+        t_link = t_data.get("link_url") or ""
         raw_posts = t_data["posts"]
-        t_posts = [p["text"] if isinstance(p, dict) else str(p) for p in raw_posts]
+        t_posts = [(p["text"] if isinstance(p, dict) else str(p)).replace("[URL]", t_link) for p in raw_posts]
         t_content = "\n\n---\n\n".join(t_posts)
         t_id = create_threads_post(
             content=t_content,

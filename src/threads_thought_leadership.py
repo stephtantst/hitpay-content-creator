@@ -143,6 +143,7 @@ WHAT TO AVOID:
 - Sentences where every line has the same short rhythm — it starts to sound robotic.
 - Craft-signalling phrases: "which was the part that stayed with us", "as it turns out", "that's the whole story."
 - Stock closing lines or anything that sounds like it was written to be the ending.
+- "Linked in bio", "link in bio", "link in our bio", "full breakdown is linked in bio", or any variation — NEVER write these. The placeholder [URL] will be replaced with the actual article URL. Use it naturally in a sentence in the final post's CTA, e.g. "If you're switching to QR, this is how she set it up: [URL]"
 
 DO NOT include: hashtags, statistics or percentages, product feature lists, emojis (except 🧵 at the end of Post 1 in multi-part threads), marketing buzzwords (seamless, empower, innovate, frictionless, cutting-edge, robust)"""
 
@@ -618,6 +619,26 @@ def generate_threads_story(
         return str(p)
 
     data["posts"] = [_cap_post(_to_str(p)) for p in posts]
+
+    # For HitPay stories, ensure the last post contains [URL].
+    # The model sometimes writes "linked in bio" (a Threads platform idiom) instead.
+    # Strip that hallucination and append [URL] so the URL gets substituted on use.
+    _BIO_LINK_RE = re.compile(
+        r'[\s\u2014\-]*(?:'
+        r'[Tt]he full breakdown is linked in (?:our\s+)?bio|'
+        r'[Ff]ull (?:breakdown|details?) (?:is\s+)?linked in (?:our\s+)?bio|'
+        r'[Ff]ind (?:it|the link) in (?:our\s+)?bio|'
+        r'[Ll]ink(?:ed)? in (?:our\s+)?bio'
+        r')\.?',
+        re.IGNORECASE,
+    )
+    if brand != "smegrowthhub" and data["posts"]:
+        last = data["posts"][-1]
+        if "[URL]" not in last:
+            cleaned = _BIO_LINK_RE.sub("", last).rstrip().rstrip("\u2014").rstrip()
+            if not cleaned.endswith((".", "!", "?", "\u2026")):
+                cleaned += "."
+            data["posts"][-1] = _cap_post(cleaned + " [URL]")
 
     link_url = data.get("link_url") or fallback
     if url_pattern:
