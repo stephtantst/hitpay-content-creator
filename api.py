@@ -3125,5 +3125,45 @@ def api_regenerate_aug26(user_email: str = Depends(require_auth)):
     }
 
 
+class BulkDeleteByDateRequest(BaseModel):
+    start_date: str   # ISO date string, e.g. "2026-08-26"
+    end_date: str     # ISO date string, inclusive upper bound
+    platforms: list[str]  # ["x"], ["threads"], or ["x", "threads"]
+
+
+@app.post("/api/admin/bulk-delete-by-date")
+def api_bulk_delete_by_date(req: BulkDeleteByDateRequest, user_email: str = Depends(require_auth)):
+    """Delete X and/or Threads posts scheduled within [start_date, end_date] (inclusive)."""
+    from src.x_database import get_x_posts_scheduled_from, delete_x_post
+    from src.threads_database import get_threads_posts_scheduled_from, delete_threads_post
+
+    start = req.start_date
+    # end_date is inclusive, so the exclusive upper bound is the next day
+    from datetime import date, timedelta
+    end_exclusive = str(date.fromisoformat(req.end_date) + timedelta(days=1))
+
+    result: dict = {}
+
+    if "x" in req.platforms:
+        posts = [
+            p for p in get_x_posts_scheduled_from(start)
+            if p.get("scheduled_at") and start <= str(p["scheduled_at"])[:10] < end_exclusive
+        ]
+        for p in posts:
+            delete_x_post(p["id"])
+        result["x"] = len(posts)
+
+    if "threads" in req.platforms:
+        posts = [
+            p for p in get_threads_posts_scheduled_from(start)
+            if p.get("scheduled_at") and start <= str(p["scheduled_at"])[:10] < end_exclusive
+        ]
+        for p in posts:
+            delete_threads_post(p["id"])
+        result["threads"] = len(posts)
+
+    return {"deleted": result, "triggered_by": user_email}
+
+
 if __name__ == "__main__":
     uvicorn.run("api:app", host="127.0.0.1", port=8000, reload=True)

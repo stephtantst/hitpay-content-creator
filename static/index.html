@@ -2709,6 +2709,8 @@
     <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="openEdmModal()" title="Generate social posts from an email newsletter">✉ From EDM</button>
     <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="openChangelogModal('x')" title="Generate posts from HitPay changelog">📋 From Changelog</button>
     <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="openWeeklyBatchModal()" title="Generate a full week of X + Threads drafts">⚡ Generate Week</button>
+    <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="runRegenAug26()" title="Delete and regenerate Aug 26–31 X + Threads drafts">🔄 Regen Aug 26–31</button>
+    <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="openBulkDeleteModal()" title="Delete posts in a date range">🗑 Bulk delete</button>
     <button class="btn-new-post" onclick="openCreateXModal()">＋ New Post</button>
   </div>
 
@@ -2960,6 +2962,8 @@
     <div style="flex:1"></div>
     <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="openChangelogModal('threads')" title="Generate posts from HitPay changelog">📋 From Changelog</button>
     <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="openWeeklyBatchModal()" title="Generate a full week of X + Threads drafts">⚡ Generate Week</button>
+    <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="runRegenAug26()" title="Delete and regenerate Aug 26–31 X + Threads drafts">🔄 Regen Aug 26–31</button>
+    <button class="btn" style="font-size:12px;padding:5px 10px;margin-right:6px;" onclick="openBulkDeleteModal()" title="Delete posts in a date range">🗑 Bulk delete</button>
     <button class="btn-new-post" onclick="openCreateThrModal()">＋ New Story</button>
   </div>
 
@@ -4538,6 +4542,75 @@
   </div>
 </div>
 
+<!-- Admin: Regen Aug 26–31 Modal -->
+<div class="modal-overlay" id="regenAug26Modal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">Regen Aug 26–31</div>
+    <div id="regenAug26Intro" style="margin-bottom:16px;font-size:13px;color:var(--text-secondary);">
+      Deletes existing X + Threads drafts for Aug 26–31 and regenerates with the current prompts. Posts that fail the fact-check are skipped.
+    </div>
+    <div id="regenAug26Actions" style="display:flex;gap:8px;">
+      <button class="btn" style="flex:1;" onclick="closeRegenAug26Modal()">Cancel</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="confirmRegenAug26()">Delete &amp; regenerate</button>
+    </div>
+    <div id="regenAug26Loading" style="display:none;text-align:center;padding:16px 0;">
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:6px;">Deleting old posts + regenerating 6 days…</div>
+      <div style="font-size:12px;color:var(--text-tertiary);">This takes 1–2 minutes</div>
+    </div>
+    <div id="regenAug26Result" style="display:none;">
+      <div id="regenAug26ResultContent"></div>
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary" style="width:100%;" onclick="closeRegenAug26Modal()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin: Bulk delete by date range Modal -->
+<div class="modal-overlay" id="bulkDeleteModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">Bulk delete by date</div>
+    <div id="bulkDeleteForm">
+      <div style="margin-bottom:14px;font-size:13px;color:var(--text-secondary);">
+        Delete all X and/or Threads drafts scheduled in a date range. This cannot be undone.
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:14px;">
+        <div style="flex:1;">
+          <div class="field-label">From</div>
+          <input type="date" id="bulkDeleteStart" class="field-input" />
+        </div>
+        <div style="padding-bottom:9px;color:var(--text-dim);font-size:13px;">→</div>
+        <div style="flex:1;">
+          <div class="field-label">To (inclusive)</div>
+          <input type="date" id="bulkDeleteEnd" class="field-input" />
+        </div>
+      </div>
+      <div style="margin-bottom:18px;">
+        <div class="field-label">Platforms</div>
+        <div style="display:flex;gap:16px;margin-top:6px;">
+          <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" id="bulkDeleteX" checked /> X
+          </label>
+          <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" id="bulkDeleteThreads" checked /> Threads
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" style="flex:1;" onclick="closeBulkDeleteModal()">Cancel</button>
+        <button class="btn" style="flex:2;background:#c62828;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;" onclick="runBulkDelete()">Delete posts</button>
+      </div>
+    </div>
+    <div id="bulkDeleteLoading" style="display:none;text-align:center;padding:16px 0;font-size:13px;color:var(--text-secondary);">Deleting posts…</div>
+    <div id="bulkDeleteResult" style="display:none;">
+      <div id="bulkDeleteResultContent"></div>
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary" style="width:100%;" onclick="closeBulkDeleteModal()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Login Overlay -->
 <div id="loginOverlay" style="display:none;">
   <div class="login-card">
@@ -5517,6 +5590,115 @@ async function runWeeklyBatch() {
     document.getElementById('weeklyBatchLoading').style.display = 'none';
     document.getElementById('weeklyBatchResult').style.display = 'block';
     document.getElementById('weeklyBatchResultContent').innerHTML =
+      `<div style="color:var(--error);font-size:13px;">Network error: ${err.message}</div>`;
+  }
+}
+
+// ── Admin: Regen Aug 26–31 ────────────────────────────────────────────────
+function runRegenAug26() {
+  document.getElementById('regenAug26Intro').style.display = 'block';
+  document.getElementById('regenAug26Actions').style.display = 'flex';
+  document.getElementById('regenAug26Loading').style.display = 'none';
+  document.getElementById('regenAug26Result').style.display = 'none';
+  document.getElementById('regenAug26ResultContent').innerHTML = '';
+  document.getElementById('regenAug26Modal').classList.add('open');
+}
+
+function closeRegenAug26Modal() {
+  document.getElementById('regenAug26Modal').classList.remove('open');
+}
+
+async function confirmRegenAug26() {
+  document.getElementById('regenAug26Intro').style.display = 'none';
+  document.getElementById('regenAug26Actions').style.display = 'none';
+  document.getElementById('regenAug26Loading').style.display = 'block';
+  document.getElementById('regenAug26Result').style.display = 'none';
+  try {
+    const res = await fetch('/api/admin/regenerate-aug26', { method: 'POST' });
+    const data = await res.json();
+    document.getElementById('regenAug26Loading').style.display = 'none';
+    document.getElementById('regenAug26Result').style.display = 'block';
+    if (!res.ok) {
+      document.getElementById('regenAug26ResultContent').innerHTML =
+        `<div style="color:var(--error);font-size:13px;">${data.detail || 'Failed. Please try again.'}</div>`;
+    } else {
+      const del = data.deleted || {};
+      const thr = data.threads || {};
+      const x = data.x || {};
+      const skipped = (x.skipped || []).length + (thr.skipped || []).length;
+      const errors = (x.errors || []).length + (thr.errors || []).length;
+      let html = `<div style="font-size:13px;margin-bottom:10px;">
+        Deleted <strong>${del.x || 0} X</strong> + <strong>${del.threads || 0} Threads</strong> old posts.<br>
+        Created <strong>${(x.created || []).length} X</strong> + <strong>${(thr.created || []).length} Threads</strong> new posts.`;
+      if (skipped) html += ` <span style="color:var(--text-secondary);">(${skipped} skipped — fact-check fail)</span>`;
+      if (errors) html += ` <span style="color:var(--error);">(${errors} errors)</span>`;
+      html += `</div>`;
+      document.getElementById('regenAug26ResultContent').innerHTML = html;
+      if (typeof loadXPosts === 'function') loadXPosts();
+      if (typeof loadThrPosts === 'function') loadThrPosts();
+      if (typeof loadSocialCalPosts === 'function') loadSocialCalPosts();
+    }
+  } catch (err) {
+    document.getElementById('regenAug26Loading').style.display = 'none';
+    document.getElementById('regenAug26Result').style.display = 'block';
+    document.getElementById('regenAug26ResultContent').innerHTML =
+      `<div style="color:var(--error);font-size:13px;">Network error: ${err.message}</div>`;
+  }
+}
+
+// ── Admin: Bulk delete by date range ──────────────────────────────────────
+function openBulkDeleteModal() {
+  document.getElementById('bulkDeleteForm').style.display = 'block';
+  document.getElementById('bulkDeleteLoading').style.display = 'none';
+  document.getElementById('bulkDeleteResult').style.display = 'none';
+  document.getElementById('bulkDeleteResultContent').innerHTML = '';
+  document.getElementById('bulkDeleteModal').classList.add('open');
+}
+
+function closeBulkDeleteModal() {
+  document.getElementById('bulkDeleteModal').classList.remove('open');
+}
+
+async function runBulkDelete() {
+  const start = document.getElementById('bulkDeleteStart').value;
+  const end = document.getElementById('bulkDeleteEnd').value;
+  const doX = document.getElementById('bulkDeleteX').checked;
+  const doThreads = document.getElementById('bulkDeleteThreads').checked;
+  if (!start || !end) { alert('Please select a date range.'); return; }
+  if (!doX && !doThreads) { alert('Select at least one platform.'); return; }
+  const platforms = [];
+  if (doX) platforms.push('x');
+  if (doThreads) platforms.push('threads');
+  if (!confirm(`Delete all ${platforms.join(' + ')} posts scheduled ${start} → ${end}? This cannot be undone.`)) return;
+  document.getElementById('bulkDeleteForm').style.display = 'none';
+  document.getElementById('bulkDeleteLoading').style.display = 'block';
+  try {
+    const res = await fetch('/api/admin/bulk-delete-by-date', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start_date: start, end_date: end, platforms }),
+    });
+    const data = await res.json();
+    document.getElementById('bulkDeleteLoading').style.display = 'none';
+    document.getElementById('bulkDeleteResult').style.display = 'block';
+    if (!res.ok) {
+      document.getElementById('bulkDeleteResultContent').innerHTML =
+        `<div style="color:var(--error);font-size:13px;">${data.detail || 'Delete failed.'}</div>`;
+    } else {
+      const counts = data.deleted || {};
+      const parts = [];
+      if (counts.x !== undefined) parts.push(`<strong>${counts.x} X post${counts.x !== 1 ? 's' : ''}</strong>`);
+      if (counts.threads !== undefined) parts.push(`<strong>${counts.threads} Threads post${counts.threads !== 1 ? 's' : ''}</strong>`);
+      document.getElementById('bulkDeleteResultContent').innerHTML =
+        `<div style="font-size:13px;">Deleted ${parts.join(' + ')}.</div>`;
+      if (typeof loadXPosts === 'function') loadXPosts();
+      if (typeof loadThrPosts === 'function') loadThrPosts();
+      if (typeof loadSocialCalPosts === 'function') loadSocialCalPosts();
+    }
+  } catch (err) {
+    document.getElementById('bulkDeleteLoading').style.display = 'none';
+    document.getElementById('bulkDeleteResult').style.display = 'block';
+    document.getElementById('bulkDeleteResultContent').innerHTML =
       `<div style="color:var(--error);font-size:13px;">Network error: ${err.message}</div>`;
   }
 }
