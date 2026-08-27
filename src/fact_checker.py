@@ -148,6 +148,116 @@ def _detect_market(post: dict, content: str) -> str:
     return best if scores[best] > 0 else "unknown"
 
 
+_SOCIAL_FACTS = """
+## Settlement Timing — CRITICAL, always check
+- Singapore HitPay Balance (PayNow, GrabPay, ShopeePay, all APMs, Borderless QR): T+1 CALENDAR DAY
+  Do NOT say "next business day" for SG APMs — calendar day includes Saturday and Sunday
+- Singapore Cards (Stripe): from T+1 Business Day
+- Malaysia HitPay Balance (DuitNow, FPX, TnG, ShopeePay, all APMs, Borderless QR): T+2 CALENDAR DAYS
+  NEVER say "next business day" or "T+1" for Malaysia — always T+2 calendar
+- Malaysia Cards (Stripe): T+3 Business Days
+- Philippines HitPay Balance (non-card, e.g. GCash, QR Ph, ShopeePay): T+1 Calendar Day
+  (InstaPay for under PHP 50k, PESONet for over PHP 50k — 2–3 working days)
+- Philippines Cards (online): T+7 Calendar Days; Cards (in-person): T+2 Calendar Days
+
+## Payment Method Availability — CRITICAL
+- NO Alipay in Singapore (WeChat Pay covers the Chinese visitor segment)
+- NO Alipay in Philippines
+- Alipay IS available in Malaysia
+- WeChat Pay IS available in Philippines (cross-border)
+- GCash is Philippines-only (available as cross-border in SG/MY)
+- DuitNow is Malaysia-only (available as cross-border in SG/PH)
+- FPX is Malaysia-only
+- QR Ph is Philippines-only (available as cross-border in SG/MY)
+- PayNow is Singapore-only (available as cross-border in MY/PH)
+- Touch 'n Go is Malaysia-only (available as cross-border in SG/PH)
+- GIRO Direct Debit is Singapore-only
+
+## Verified Fees — only state these, no others
+Singapore: PayNow 0.65% + S$0.30 | Domestic cards 2.8% + S$0.50
+Malaysia: DuitNow QR 1.2% | FPX 1.8% + RM 0.40 | Domestic cards 1.2% + RM 1.00
+Philippines: GCash 2.3% | QR Ph 1.0% (or ₱20, whichever is higher) | Local cards 3% + ₱15
+
+## Recurring Billing — supported methods only
+Singapore: Cards, GIRO, ShopeePay, GrabPay (PayNow is NOT recurring)
+Malaysia: Cards, TnG, ShopeePay, GrabPay, ZaloPay (FPX is NOT recurring)
+Philippines: Cards, ShopeePay (GCash is NOT recurring, QR Ph is NOT recurring)
+
+## Do NOT accept these claims
+- "next business day" for SG APMs (correct: T+1 calendar day — settles Saturday if collected Friday)
+- "next business day" for Malaysia (correct: T+2 calendar days)
+- "no-shows dropped", "sales increased", or any invented quantitative result
+- Specific stats attributed to HitPay (user counts, processing volumes) without citing source
+- "50+ payment methods" for Malaysia or Philippines (that count is Singapore only)
+"""
+
+_SOCIAL_FC_PROMPT = """Fact-check this HitPay social media post against the verified facts below.
+
+MARKET: {market}
+
+VERIFIED FACTS:
+{facts}
+
+POST CONTENT:
+{content}
+
+Check ONLY factual claims about: settlement timing, payment method availability, fees/MDR rates, market availability of specific features, and any specific stats or numbers.
+Do NOT flag tone, style, CTAs, or claims you cannot verify either way from the facts above.
+
+Return JSON only — no markdown:
+{{
+  "verdict": "pass" | "flag" | "fail",
+  "issues": [
+    {{
+      "severity": "critical" | "warning",
+      "claim": "exact short quote from the post",
+      "issue": "what is wrong",
+      "fix": "what it should say"
+    }}
+  ],
+  "summary": "one sentence"
+}}
+
+verdict definitions:
+  pass = no factual issues
+  flag = imprecise but not wrong (e.g. T+1 calendar described as "next business day" — true on weekdays but misleading)
+  fail = critical factual error that must be corrected before publishing"""
+
+
+def fact_check_social_post(content: str, market: str) -> dict:
+    """Fact-check a Threads or X post against verified HitPay facts.
+
+    Args:
+        content: Full post text (all parts of a thread concatenated, or a single tweet)
+        market: "SG", "MY", or "PH"
+
+    Returns:
+        {"verdict": "pass"|"flag"|"fail", "issues": [...], "summary": "..."}
+    """
+    import json
+    from src.generator import _messages_create_with_retry
+
+    prompt = _SOCIAL_FC_PROMPT.format(
+        facts=_SOCIAL_FACTS,
+        market=market.upper(),
+        content=content,
+    )
+
+    client = OpenRouterClient()
+    response = _messages_create_with_retry(
+        client,
+        model=OPENROUTER_MODEL,
+        max_tokens=600,
+        system="You are a fact-checker. Return only valid JSON.",
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    raw = response.content[0].text.strip()
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+    return json.loads(raw)
+
+
 def run_fact_check(post: dict, content: str) -> dict:
     """Run Claude-powered fact check on a blog post. Returns a dict with issues."""
     market = _detect_market(post, content)

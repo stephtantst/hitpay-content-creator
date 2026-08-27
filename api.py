@@ -3004,5 +3004,126 @@ def api_delete_youtube_description(entry_id: int, _: str = Depends(require_auth)
     return {"ok": True}
 
 
+# ── One-shot Aug 26–31 regeneration ─────────────────────────────────────────
+
+@app.post("/api/admin/regenerate-aug26")
+def api_regenerate_aug26(user_email: str = Depends(require_auth)):
+    """Delete and regenerate X + Threads drafts for Aug 26–31 with fact-check gating.
+
+    Protected by Google OAuth. Returns a summary of what was created/skipped/failed.
+    Safe to call multiple times — deletes existing range before regenerating.
+    """
+    import random
+    from datetime import date, datetime, timedelta, timezone
+    from src.thought_leadership import (
+        HITPAY_TOPIC_POOL, CONTENT_TYPE_BY_WEEKDAY, CONTENT_TYPE_CONFIGS,
+        _BLOG_REPURPOSE_CONTENT_TYPES,
+        generate_random_x_post, generate_thought_leadership_thread,
+    )
+    from src.threads_thought_leadership import generate_threads_story
+    from src.repurposer import _cap_tweet_post_url
+    from src.x_database import create_x_post, delete_x_post, get_x_posts_scheduled_from
+    from src.threads_database import create_threads_post, delete_threads_post, get_threads_posts_scheduled_from
+    from src.fact_checker import fact_check_social_post
+
+    START_DATE = "2026-08-26"
+    END_DATE = "2026-09-01"
+    MARKET_CYCLE = ["SG", "MY", "PH"]
+
+    def _in_range(posts):
+        return [p for p in posts if p.get("scheduled_at") and START_DATE <= str(p["scheduled_at"])[:10] < END_DATE]
+
+    base = date.fromisoformat(START_DATE)
+    end = date.fromisoformat(END_DATE)
+    dates, d = [], base
+    while d < end:
+        dates.append(datetime(d.year, d.month, d.day, 1, 0, 0, tzinfo=timezone.utc))
+        d += timedelta(days=1)
+    schedule = [(dt, MARKET_CYCLE[i % len(MARKET_CYCLE)]) for i, dt in enumerate(dates)]
+
+    # Delete existing posts in range
+    x_del = _in_range(get_x_posts_scheduled_from(START_DATE))
+    thr_del = _in_range(get_threads_posts_scheduled_from(START_DATE))
+    for p in x_del:
+        delete_x_post(p["id"])
+    for p in thr_del:
+        delete_threads_post(p["id"])
+
+    threads_created, threads_skipped, threads_errors = [], [], []
+    x_created, x_skipped, x_errors = [], [], []
+    last_structure = None
+
+    # Threads
+    for i, (dt, market) in enumerate(schedule):
+        topic = random.choice(HITPAY_TOPIC_POOL)
+        try:
+            data = generate_threads_story(
+                market=market, topic_hint=topic, thread_size=3,
+                brand="hitpay", _avoid_structure=last_structure,
+            )
+            link = data.get("link_url") or ""
+            resolved = [p.replace("[URL]", link) for p in data["posts"]]
+            content = "\n\n".join(resolved)
+            last_structure = data.get("structure")
+            try:
+                fc = fact_check_social_post(content, market)
+                if fc.get("verdict") == "fail":
+                    threads_skipped.append({"date": str(dt.date()), "market": market, "reason": fc.get("summary", "fact_check_fail")})
+                    continue
+            except Exception:
+                pass  # fact check failure → save anyway
+            post_id = create_threads_post(
+                content=content, market=market, scheduled_at=dt,
+                brand="hitpay", source="regenerate_aug26",
+            )
+            threads_created.append({"date": str(dt.date()), "market": market, "id": post_id})
+        except Exception as exc:
+            threads_errors.append({"date": str(dt.date()), "market": market, "error": str(exc)})
+
+    # X posts
+    for i, (dt, market) in enumerate(schedule):
+        topic = random.choice(HITPAY_TOPIC_POOL)
+        content_type = CONTENT_TYPE_BY_WEEKDAY.get(dt.weekday(), "thought_leadership")
+        try:
+            if content_type in _BLOG_REPURPOSE_CONTENT_TYPES:
+                try:
+                    data = generate_random_x_post(market=market, topic_hint=topic, brand="hitpay", content_type=content_type)
+                except Exception:
+                    cfg = CONTENT_TYPE_CONFIGS[content_type]
+                    data = generate_thought_leadership_thread(
+                        market=market, topic_hint=topic,
+                        thread_size=cfg["thread_size"], style=cfg["style"],
+                        content_type=content_type, brand="hitpay",
+                    )
+                    data["content_type"] = content_type
+            else:
+                data = generate_random_x_post(market=market, topic_hint=topic, brand="hitpay", content_type=content_type)
+            link = data.get("link_url") or ""
+            tweets = data.get("tweets") or []
+            resolved = [_cap_tweet_post_url(t.replace("[URL]", link)) for t in tweets]
+            content = "\n\n".join(resolved)
+            try:
+                fc = fact_check_social_post(content, market)
+                if fc.get("verdict") == "fail":
+                    x_skipped.append({"date": str(dt.date()), "market": market, "reason": fc.get("summary", "fact_check_fail")})
+                    continue
+            except Exception:
+                pass
+            post_id = create_x_post(
+                content=content, market=market, scheduled_at=dt,
+                brand="hitpay", source="regenerate_aug26",
+            )
+            x_created.append({"date": str(dt.date()), "market": market, "id": post_id})
+        except Exception as exc:
+            x_errors.append({"date": str(dt.date()), "market": market, "error": str(exc)})
+
+    return {
+        "deleted": {"x": len(x_del), "threads": len(thr_del)},
+        "threads": {"created": threads_created, "skipped": threads_skipped, "errors": threads_errors},
+        "x": {"created": x_created, "skipped": x_skipped, "errors": x_errors},
+        "triggered_by": user_email,
+    }
+
+
 if __name__ == "__main__":
     uvicorn.run("api:app", host="127.0.0.1", port=8000, reload=True)

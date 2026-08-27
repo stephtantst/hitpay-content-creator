@@ -273,36 +273,37 @@ def _build_merchant_story_prompt(thread_size: int) -> str:
         "visual_note": None,
     }, ensure_ascii=False)
 
-    return f"""You are the @hitpay_app content writer for X (Twitter) — Wednesday slot: Merchant Story.
-Write a single tweet that tells a real-feeling story about a Southeast Asian merchant solving a problem with HitPay.
+    return f"""You are the @hitpay_app content writer for X (Twitter) — Wednesday slot.
+Write a single tweet that shares something useful for Southeast Asian business owners — an observation, a practical tip, a cost comparison, or a product use case. You can write a merchant archetype observation, but you do not have to.
 
 BRAND: HitPay — MAS-licensed (SG), BNM-approved (MY), BSP OPS-licensed (PH). No monthly fees. 50+ payment methods.
-TONE: Narrative, specific, human. Like a journalist compressing a business story into one sentence — not a brand writing a press release.
+TONE: Direct and practical. Like someone at HitPay sharing something genuinely useful — not a brand writing copy.
 AUDIENCE: SME founders and merchants in Singapore, Malaysia, or Philippines.
 
 CONTENT FORMAT: Single tweet — no numbers, no thread emoji
 - Exactly 1 tweet
 - Do NOT use 🧵 or any thread emoji
-- The full arc in one tweet: person + problem → what changed → concrete outcome
 - 200–270 chars. End with [URL] as a literal placeholder.
+- Choose the approach that suits the topic best:
+  (a) Observation or insight — lead with the business problem or pattern directly
+  (b) Practical tip — what a business owner can do, and with which HitPay feature
+  (c) Cost or fee comparison — concrete numbers if verified (e.g. HitPay MDR rates)
+  (d) Product use case — who benefits and how, without inventing a fictional scenario
 
-MERCHANT ARCHETYPE FOR THIS STORY: {archetype}
-Suggested name (use this one, or another equally specific and varied name — never reuse a name from a previous story): {suggested_name}
+RELEVANT BUSINESS ARCHETYPE (for context, not a mandatory story): {archetype}
 
-PAIN POINTS — pick the most compelling:
+PAIN POINTS — pick the most relevant:
 - Manual reconciliation eating hours every week
 - Late invoices hurting cash flow
 - Customers unable to pay due to missing payment methods
 - High card fees on every transaction
 - Checkout friction causing abandoned sales
-- Cash flow gap between sale date and payout date
-
-DO NOT default to overused examples: {_OVERUSED_STORY_EXAMPLES_TWEET}. Every story must feel freshly invented.
 
 STYLE RULES:
-- Open with "She" or "He" or "They" — name a real-feeling archetype, not "a business owner"
-- Include one specific detail that makes it feel true (a number, a day, a place)
-- End with a concrete result + a short reader-involving CTA with [URL] — connect the outcome back to the reader, e.g. "If you're still chasing the same invoices, this is how she fixed it: [URL]"
+- Lead with the business problem or insight — the first sentence earns the read
+- Do not invent specific merchant names, street addresses, or fabricated results ("no-shows dropped", "payments came in immediately")
+- If you use a merchant archetype, keep it generic: "a catering business" or "businesses taking deposits" — not an invented individual
+- Vary the CTA: "Here's how:", "More on this:", "Worth comparing:", "How it works:" — avoid defaulting to "worth a look", "worth enabling", "worth fixing"
 - No hashtags, no @ mentions, no 🧵
 - Banned words: seamlessly, unlock, revolutionise, game-changer, cutting-edge, empower, leverage
 
@@ -374,6 +375,8 @@ Attack PROCESSES or BEHAVIOURS only.
 STYLE RULES:
 - No hashtags, no @ mentions, no 🧵
 - Banned structures: "Honest truth:", "Hot take:", "Unpopular opinion:", "This is your reminder", "Read that again."
+- Banned CTA patterns: "worth a look", "worth enabling", "worth fixing", "worth considering" — vary the ending: "Here's how:", "More on this:", "Worth comparing:", or simply end the observation without a CTA
+- Some posts don't need a CTA at all — if the observation stands on its own, let it
 - Banned words: seamlessly, unlock, revolutionise, game-changer, cutting-edge, empower, leverage, utilise, transformative, innovative, robust
 
 OUTPUT: Return a raw JSON object only. No markdown fences, no preamble.
@@ -595,8 +598,10 @@ HITPAY FEATURES TO DRAW FROM — use these verified facts, not generic descripti
 
 STYLE RULES:
 - Lead with what the merchant can now DO or STOP DOING — not what the feature is called
-- Lead with the problem/outcome, then what HitPay does. End with a short reader-involving CTA that includes [URL] in the sentence — e.g. "If you're still turning away card customers, this takes 5 minutes to set up: [URL]" rather than just "Set up in minutes: [URL]"
+- You can also write as a cost comparison or calculation — e.g. "3% MDR on a large invoice vs FPX at [rate]: the difference is real for businesses collecting larger amounts"
+- Vary the CTA: "Here's how it works:", "More on this:", "Worth comparing:", "How to set it up:" — avoid defaulting to "worth a look", "worth enabling", "worth fixing"
 - No hashtags, no @ mentions
+- Do not invent specific merchant names, locations, or fabricated results — describe the type of business rather than a fictional individual
 - Banned words: seamlessly, unlock, revolutionise, game-changer, cutting-edge, empower, leverage, utilise, transformative, innovative, robust
 - NEVER disparage card terminals, POS hardware, or any payment method HitPay offers
 
@@ -908,14 +913,16 @@ def generate_thought_leadership_thread(
     # hot_take posts are intentionally text-only — no URL attached
     if content_type == "thought_leadership":
         link_url = None
-        # thought_leadership is text-only — strip any stray [URL] Claude may have added.
-        # Only touch the tweet (and re-close the sentence) if [URL] was actually present —
-        # otherwise this was clobbering the tweet's own genuine closing full stop.
         last = tweets[-1]
+        # Strip [URL] placeholder if the model included it
         if "[URL]" in last:
-            last = last.replace("[URL]", "").rstrip().rstrip("…").rstrip()
-            if last and not last.endswith((".", "!", "?", "…")):
-                last += "."
+            last = last.replace("[URL]", "").rstrip()
+        # Strip any dangling : or … the model left expecting a URL to follow
+        # e.g. "Worth checking:" or "you settle in SGD:" or "cards, or…"
+        import re as _re
+        last = _re.sub(r'[\s:…\.]+$', '', last).rstrip()
+        if last and not last.endswith((".", "!", "?")):
+            last += "."
         tweets[-1] = last
     else:
         fallback = _SME_FALLBACK_URL if brand == "smegrowthhub" else _FALLBACK_URL
