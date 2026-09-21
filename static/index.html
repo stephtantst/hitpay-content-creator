@@ -2114,6 +2114,26 @@
   .yt-history-empty { font-size: 12.5px; color: var(--text-dim); font-style: italic; }
   .yt-history-del { color: var(--text-dim); background: none; border: none; cursor: pointer; font-size: 13px; padding: 0 2px; flex-shrink: 0; }
   .yt-history-del:hover { color: var(--red); }
+  .yt-tips {
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+    margin-bottom: 18px; overflow: hidden;
+  }
+  .yt-tips > summary {
+    list-style: none; cursor: pointer; padding: 11px 14px; font-size: 12.5px; font-weight: 600;
+    color: var(--text); display: flex; align-items: center; gap: 8px; user-select: none;
+  }
+  .yt-tips > summary::-webkit-details-marker { display: none; }
+  .yt-tips > summary .yt-tips-chev { margin-left: auto; color: var(--text-dim); font-size: 11px; transition: transform 0.15s; }
+  .yt-tips[open] > summary .yt-tips-chev { transform: rotate(180deg); }
+  .yt-tips-body { padding: 2px 14px 14px; }
+  .yt-tips-body ul { margin: 0; padding-left: 18px; }
+  .yt-tips-body li { font-size: 12px; line-height: 1.6; color: var(--text-muted); margin-bottom: 8px; }
+  .yt-tips-body li:last-child { margin-bottom: 0; }
+  .yt-tips-body li strong { color: var(--text); font-weight: 600; }
+  .yt-tips-body code {
+    background: var(--surface2); border-radius: 4px; padding: 1px 5px; font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text);
+  }
 
   </style>
 </head>
@@ -3659,6 +3679,21 @@
       <div>
         <div class="yt-title">Generate a YouTube title &amp; description</div>
         <div class="yt-sub">Paste in what the video is about — a summary, talking points, or transcript notes. We'll write an AEO-optimized title and description, and link "Learn more" to the most relevant published blog post for the market you pick.</div>
+
+        <details class="yt-tips">
+          <summary>🔗 Best practices for description links <span class="yt-tips-chev">▾</span></summary>
+          <div class="yt-tips-body">
+            <ul>
+              <li><strong>Front-load crucial links.</strong> Put the primary website or landing page in the first one or two lines, so it's visible before viewers click "Show more".</li>
+              <li><strong>Include full URLs with protocols.</strong> Always start links with <code>https://</code> or <code>http://</code> so YouTube makes them clickable automatically.</li>
+              <li><strong>Add contextual copy.</strong> Avoid dumping raw, naked URLs or spammy text. Use a short, human-readable action phrase — e.g. "Download the free guide here: [URL]".</li>
+              <li><strong>Keep it relevant.</strong> Only include links that match the specific topic of the video, to keep it clear and avoid looking like spam.</li>
+              <li><strong>Front-load 1–3 primary links,</strong> then a labeled resource block (Docs, Pricing, Availability) lower down is fine — as long as every link is relevant.</li>
+              <li><strong>Fill in the slots.</strong> Generated descriptions leave <code>[ADD VERIFIED URL]</code> for topic-specific docs and landing pages — paste the real, verified URL before publishing (the tool never guesses these).</li>
+            </ul>
+          </div>
+        </details>
+
         <div class="field-group">
           <div class="field-label">Video type</div>
           <select class="modal-select" id="ytVideoType">

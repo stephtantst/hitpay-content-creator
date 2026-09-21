@@ -15,6 +15,17 @@ from src.database import list_posts
 
 BLOG_BASE_URL = "https://hitpayapp.com/blog"
 
+# Real, always-safe canonical URLs the model MAY emit verbatim when relevant.
+# Anything topic-specific (a payment-method doc, a landing page, the changelog)
+# is left as a fill-in slot so the URL is human-verified before publishing —
+# the tool never invents a docs/LP path.
+_SAFE_LINKS = {
+    "Pricing": "https://hitpayapp.com/pricing",
+    "Refunds": "https://docs.hitpayapp.com/payments/refund",
+    "Docs home": "https://docs.hitpayapp.com",
+}
+_LINK_SLOT = "[ADD VERIFIED URL]"
+
 _BANNED_WORDS = (
     "seamlessly, unlock, revolutionise, revolutionize, game-changer, cutting-edge, "
     "empower, leverage, utilise, utilize, transformative, innovative, robust"
@@ -114,30 +125,41 @@ def _build_prompt(video_info: str, market: str | None, candidates: list[dict], v
         for c in candidates
     ) or "  (none available)"
 
+    safe_links_str = "\n".join(f'  - {label}: {url}' for label, url in _SAFE_LINKS.items())
+
     example = json.dumps({
         "title": (
-            "Setup took us 10 minutes"
+            "Accept WeChat Pay for subscriptions"
             if video_type == "short"
-            else "HitPay Explains | Collecting payments faster with PayNow"
+            else "HitPay Explains | Accept WeChat Pay for recurring billing in Singapore"
         ),
         "description": (
-            "💳 Manual invoicing. Chasing payments. No real-time visibility.\n\n"
-            "HitPay is a MAS-licensed payment gateway that lets Southeast Asian merchants accept PayNow, "
-            "GrabPay, and cards with no monthly fees.\n\n"
-            "HitPay helps merchants collect payments faster - all from one dashboard.\n\n"
-            "Check out:\n"
-            "✅ How to set up a payment link in under 2 minutes\n"
-            "💰 How to accept PayNow, GrabPay, and cards with no monthly fees\n"
-            "📊 How to track every transaction from one dashboard\n\n"
-            "This is what payments should look like for a growing business.\n\n"
-            "👉 Learn more: [URL]\n\n"
-            "#HitPay #PaymentGateway #Singapore #SME #PayNow"
+            "#HitPay #WeChatPay #Subscriptions\n\n"
+            "Singapore merchants can accept WeChat Pay for recurring billing on HitPay - subscriptions, "
+            "memberships, and retainers, not only one-time checkout. HitPay is a MAS-licensed payment gateway "
+            "with no monthly fees.\n\n"
+            "How it works:\n"
+            "1. Payment Methods > WeChat Pay > Enable Recurring Payments\n"
+            "2. Attach WeChat Pay to your subscription or recurring plans\n"
+            "3. Customers renew with WeChat Pay without re-entering a card\n\n"
+            "Who it's for: Singapore merchants selling memberships, retainers, or subscriptions to customers "
+            "who prefer WeChat Pay\n"
+            "Available in: Singapore only for recurring WeChat Pay\n"
+            "Refunds: WeChat Pay does not support refunds\n"
+            "Fee / settlement: check the pricing page for current rates before quoting\n\n"
+            "Links:\n"
+            "- Learn more: [URL]\n"
+            "- Pricing: https://hitpayapp.com/pricing\n"
+            "- Docs: [ADD VERIFIED URL]\n"
+            "- Landing page: [ADD VERIFIED URL]\n"
+            "- Availability by market: [ADD VERIFIED URL]\n\n"
+            "#HitPay #WeChatPay #Subscriptions #Singapore #RecurringBilling"
         ),
         "source_post_slug": candidates[0]["slug"] if candidates else None,
         "source_post_title": candidates[0]["title"] if candidates else None,
     }, ensure_ascii=False, indent=2)
 
-    return f"""You write YouTube video titles and descriptions for HitPay, a Southeast Asian payment gateway. The description must be AEO-optimized (Answer Engine Optimized): the opening lines should let an AI assistant or search engine understand exactly what the video is about and what HitPay offers, without needing to watch it.
+    return f"""You write YouTube video titles and descriptions for HitPay, a Southeast Asian payment gateway. The description must be optimized for SEO and AEO (Answer Engine Optimization): a search engine or AI assistant should be able to read the opening lines and answer "what is this about, what does HitPay do, and where is it available" without watching the video. Structure, front-loading, and accurate market scoping matter more than storytelling.
 
 {market_line}
 
@@ -151,24 +173,30 @@ VERIFIED HITPAY FACTS FOR THIS MARKET (safe to cite):
 
 {_TITLE_STYLE_GUIDANCE[video_type]}
 
-DESCRIPTION STRUCTURE (adapt to what the video info actually supports — do not force sections that don't fit):
-1. A short 1–2 line hook naming the problem/pain point, emoji-led (1 emoji is enough).
-2. Immediately after the hook — within the first 3 lines of the description — one plain declarative sentence naming HitPay and its core identifying credential for this market, pulled from the verified facts below (e.g. "HitPay is a MAS-licensed payment gateway that lets Southeast Asian merchants accept PayNow, cards, and more with no monthly fees."). AI answer engines and search snippets often only surface the opening lines of a description, so the brand name and its authority signal must appear early, not buried after the story.
-3. A short paragraph telling the subject's story directly — who they are, and the tension or stakes that make it interesting: what problem they hit, what was at risk, or what changed for them. This must read like a story beat, not a table of contents. NEVER describe the video as an object anywhere in this paragraph (or anywhere else in the description) — banned phrasing includes "in this video," "this video covers," "this video shows," "this episode," "watch as," "we'll walk through," "in this episode." Write about the business/person directly, never about the video itself.
-4. If — and only if — the video info includes a direct quote from a named person, include it as: "Quote" – Name, Title. Otherwise, skip the quote entirely. NEVER invent a quote or a speaker.
-5. A line reading exactly "Check out:" followed by a short bulleted list (emoji-led: ✅ 💰 📊 ⏱️ 🔁 etc.) of the concrete points, features, or results covered in the video. Only include specific numbers/stats/results that appear in the video info, or the verified facts above — never fabricate a statistic.
-6. One closing sentence tying it back to the value proposition. Do not repeat the identity/credential sentence from step 2 here — say something new.
-7. A line reading exactly: "👉 Learn more: [URL]" — [URL] is a literal placeholder, do not substitute a real URL yourself.
-8. 4–6 relevant hashtags, no spaces, mixing brand/product/market tags (e.g. #HitPay #PayNow #Singapore).
+DESCRIPTION STRUCTURE — follow this order for every video. Omit a section only when the video info genuinely gives nothing for it; never pad or invent to fill one.
+
+1. TOP HASHTAGS: exactly 3 hashtags on the first line, the most important brand/product/topic tags (e.g. "#HitPay #WeChatPay #Subscriptions"). No spaces inside a tag. Blank line after.
+2. FRONT-LOADED SUMMARY (the single most important line for SEO/AEO): 1–2 plain declarative sentences that state, in the first line the reader sees after the tags — before any "Show more" cut-off — exactly what the video is about AND name HitPay with its core credential for this market (from the verified facts). Lead with the specific topic and the market (e.g. "Singapore merchants can accept WeChat Pay for recurring billing on HitPay..."). This must be keyword-rich and factual, not a teaser.
+3. "How it works:" followed by 2–4 numbered steps, only if the video info describes a process/setup. Keep steps concrete and in the product's own terms. Use ">" for menu paths (e.g. "Payment Methods > WeChat Pay").
+4. "Who it's for:" one line naming the target merchant/use case.
+5. "Available in:" one line stating the market scope EXACTLY as the facts support it. Never claim a market the video info/facts don't support (e.g. if it's Singapore-only, write "Singapore only" — do not imply Malaysia or the Philippines). This line is a factual guardrail, not marketing.
+6. "Refunds:" one line — ONLY if refunds are relevant to the topic and the behaviour is stated in the video info or verified facts. Otherwise omit.
+7. "Fee / settlement:" one line — ONLY if fees/settlement are relevant. Do NOT state a specific rate or settlement timing unless it appears in the video info; instead point to the pricing page ("check the pricing page for current rates before quoting"). Never fabricate a number.
+8. If — and only if — the video info includes a direct quote from a named person, add it on its own line as: "Quote" - Name, Title. Never invent a quote or a speaker.
+9. "Links:" followed by a bulleted list ("- Label: URL"), each with a short human-readable label (contextual anchor text, never a naked URL). Compose it like this:
+   - Always include "- Learn more: [URL]" as the FIRST link. [URL] is a literal placeholder — do not substitute a real URL yourself.
+   - You MAY add any of these VERIFIED canonical links verbatim when relevant to the topic:
+{safe_links_str}
+   - For any topic-specific resource (a payment-method doc, the changelog, a product landing page, an availability-by-market page), add a labeled line with the literal placeholder "{_LINK_SLOT}" as the URL — e.g. "- Docs: {_LINK_SLOT}". Add a slot for each such resource that genuinely fits the topic (typically 2–4). NEVER invent or guess a docs/landing-page URL.
+10. BOTTOM HASHTAGS: 4–6 hashtags on the final line, expanding the top set with market and long-tail tags (e.g. "#HitPay #WeChatPay #Subscriptions #Singapore #RecurringBilling"). No spaces inside a tag.
 
 STYLE RULES:
 - Banned words: {_BANNED_WORDS}
-- Banned phrases (anywhere in the description): "in this video", "this video covers", "this video shows", "this episode", "watch as", "we'll walk through"
-- Use plain hyphens ("-") for parenthetical breaks, never em dashes ("—")
-- No fabricated testimonials, quotes, or statistics under any circumstance
-- Factual, specific, concrete — not hype
-- Curiosity-driven and impactful, not informational — the story paragraph should make someone want to know what happened, not read like a summary of contents
-- Total description length: 150–300 words
+- Banned phrases (anywhere): "in this video", "this video covers", "this video shows", "this episode", "watch as", "we'll walk through". Write about the product/merchant directly, never about the video as an object.
+- Use plain hyphens ("-") for breaks, never em dashes ("—").
+- No fabricated testimonials, quotes, statistics, rates, settlement timings, or market availability under any circumstance. When unsure, use a link slot or point to the pricing page rather than assert.
+- Factual, specific, scannable. Section labels ("How it works:", "Who it's for:", etc.) must appear exactly as written so answer engines can parse them.
+- Total length excluding the two hashtag lines: 120–260 words.
 
 CANDIDATE PUBLISHED BLOG POSTS (pick the single most relevant one to link as "Learn more" — must copy the slug exactly as shown, or null if truly none are relevant):
 {candidates_str}
@@ -250,8 +278,10 @@ def generate_youtube_description(
         source_post_title = chosen["title"]
         source_post_id = chosen.get("id")
     else:
-        # No valid pick — drop the Learn More line rather than leave a dangling placeholder.
-        description = re.sub(r"\n*👉?\s*Learn more:\s*\[URL\]\n*", "\n", description).strip()
+        # No valid pick — drop the Learn More line rather than leave a dangling
+        # placeholder. Handles both the plain and bulleted ("- Learn more:") forms.
+        # The [ADD VERIFIED URL] slots are intentional and left untouched.
+        description = re.sub(r"\n*[-•●▪👉]*\s*Learn more:\s*\[URL\]\s*", "\n", description).strip()
         url = None
         source_post_slug = None
         source_post_title = None
